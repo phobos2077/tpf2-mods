@@ -26,6 +26,8 @@ local function chargeExtraMaintenance(mult)
 	if mult > 0 then
 		local costsByType = entity_util.getTotalEdgeCostsByType()
 		local maintenanceByType = entity_util.getTotalConstructionMaintenanceByType()
+
+		-- TODO: separate multipliers to balance out different types of maintenance
 		local totalCharged =
 			chargeForMaintenance(costsByType.street * maintenanceCostMult * mult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD) +
 			chargeForMaintenance(costsByType.track  * maintenanceCostMult * mult, journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK) +

@@ -26,9 +26,6 @@ local function getMultByCatenary(hasCatenary)
     return 1
 end
 
--- Since API doesn't expose actual costFactors let's use a reasonable default.
-local bridgeCostFactors = {10, 2, 1}
-
 local cachedCosts = {street = {}, track = {}, bridge = {}, tunnel = {}}
 
 local function getCostByType(typeId, cached, repName)
@@ -59,14 +56,46 @@ local function getTrackEdgeCost(track, len)
     return costPerMeter * len * mult
 end
 
+local function getHeightAt(pos2d)
+	return api.engine.terrain.getHeightAt(pos2d)
+end
+
+local loadedBridges = {}
+local function getBridgeCostFactors(bridgeId)
+	if loadedBridges[bridgeId] == nil then
+		local bridgeName = api.res.bridgeTypeRep.getName(bridgeId)
+		local fileName = "./res/config/bridge/" .. bridgeName
+		local env = {}
+		setmetatable(env, {__index=_G})
+		local bridgeFunc = loadfile(fileName, "bt", env)
+		if type(bridgeFunc) == "function" then
+			bridgeFunc()
+			if type(env.data) == "function" then
+				loadedBridges[bridgeId] = env.data()
+			else
+				print("Incorrect bridge script: " .. fileName)	
+			end
+		else
+			print("Error loading bridge: " .. fileName)
+		end
+	end
+
+	return loadedBridges[bridgeId] and loadedBridges[bridgeId].costFactors
+end
+
 local function getBridgeEdgeCost(edge, geometry)
     local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep")
-	local averageHeight = (geometry.height.x + geometry.height.y) / 2
+	local bridgeCostFactors = getBridgeCostFactors(edge.typeIndex)
+	local startPos = geometry.params.pos
+	local endPos = startPos + geometry.params.tangent
+	local height1 = geometry.height.x - getHeightAt(startPos)
+	local height2 = geometry.height.y - getHeightAt(endPos)
+	local averageHeight = (height1 + height2) / 2
 
 	-- This formula was deduced to approximate real costs. Actual formula may be different.
     local mult = (averageHeight / bridgeCostFactors[1]) ^ bridgeCostFactors[2]
---[[ 	debugPrint("Calculating bridge section. cost=" .. costPerMeter ..
-		", height=" .. averageHeight ..
+--[[  	debugPrint("Calculating bridge section. cost=" .. costPerMeter ..
+	 	", mult=(".. averageHeight .. "/" .. bridgeCostFactors[1] .. ") ^ " .. bridgeCostFactors[2] ..
 		", length=" .. geometry.length ..
 		", result=" .. (costPerMeter * geometry.length * mult)) ]]
     return costPerMeter * geometry.length * mult
@@ -94,7 +123,7 @@ end
 function entity_util.getTotalEdgeCostsByType()
     local playerId = game.interface.getPlayer()
     local allEdges = entity_util.getAllEntitiesByType("BASE_EDGE")
-    local result = {street = 0, track = 0}
+    local result = {street = 0, track = 0, len = {street = 0, track = 0}}
     for _, edgeId in pairs(allEdges) do
         if isPlayerOwned(edgeId) then
             local network = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
@@ -105,10 +134,12 @@ function entity_util.getTotalEdgeCostsByType()
                 local edge = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE)
                 if street ~= nil then
                     util.incInTable(result, "street", getStreetEdgeCost(street, len) + getBridgeOrTunnelEdgeCost(edge, geometry))
+					util.incInTable(result.len, "street", len)
                 else
                     local track = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_TRACK)
                     if track ~= nil then
                         util.incInTable(result, "track", getTrackEdgeCost(track, len) + getBridgeOrTunnelEdgeCost(edge, geometry))
+						util.incInTable(result.len, "track", len)
                     end
                 end
             end
@@ -179,7 +210,7 @@ end
 function entity_util.getTotalConstructionMaintenanceByType()
 	
 	local allConstructions = entity_util.getAllEntitiesByType("CONSTRUCTION")
-	local result = {street = 0, rail = 0, water = 0, air = 0}
+	local result = {street = 0, rail = 0, water = 0, air = 0, num = {}}
     for _, id in pairs(allConstructions) do
 		if isPlayerOwned(id) then
 			local construction = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)
@@ -188,6 +219,7 @@ function entity_util.getTotalConstructionMaintenanceByType()
 				local typeName = getTypeByConstruction(construction)
 				if typeName ~= nil then
 					util.incInTable(result, typeName, maintenanceCost.maintenanceCost)
+					util.incInTable(result.num, typeName, 1)
 				end
 			end
 		end
