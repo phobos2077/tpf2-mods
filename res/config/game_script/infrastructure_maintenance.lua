@@ -28,30 +28,6 @@ local function upgradeCosts()
 	end
 end
 
--- local function chargeExtraMaintenance(mult, minEntryTime)
--- 	local journal = journal_utils.getPlayerJournal()
--- 	local entriesCreated = 0
-
--- 	debugPrint("Trying to charge extra maintenance costs, mult = " .. mult ..
--- 		" journal size = " .. journal:size() ..
--- 		" min entry time = " .. minEntryTime)
-
--- 	if mult > 0 then
--- 		local amountsPerCarrier = journal_utils.getMaintenancePaymentAmountsFromJournal(journal, minEntryTime * 1000)
--- 		local totalCharged = 0
--- 		for carrierType, amountPerConstruction in pairs(amountsPerCarrier) do
--- 			for constructionType, amount in pairs(amountPerConstruction) do
--- 				journal_utils.bookEntry(amount * mult, journal_utils.Enum.Type.MAINTENANCE, carrierType, constructionType, 1)
--- 				totalCharged = totalCharged + amount * mult
--- 				entriesCreated = entriesCreated + 1
--- 			end
--- 		end
--- 		debugPrint("Charged extra maintenance costs: " .. totalCharged .. " with (" .. entriesCreated .. ") entries.")
--- 	end
--- end
-
--- local function chargeForCarrier(mult, carrierType, )
-
 local function chargeMaintenanceBasedOnCost(mult, cost, carrierType, constructionType)
 	local chargeAmount = cost * maintenanceCostMult * mult
 	journal_util.bookEntry(-chargeAmount, journal_util.Enum.Type.MAINTENANCE, carrierType, constructionType, 1)
@@ -71,13 +47,29 @@ local function chargeExtraMaintenance(mult)
 	end
 end
 
-
+--[[ 
 local loadedBridges = {}
 local function getBridgeCostFactors(bridgeName)
-	local fileName = "res/config/bridge/" .. bridgeName
-	debugPrint({"getBridgeCostFactors", fileName, util.tableKeys(loadedBridges)})
-	return loadedBridges[fileName] and loadedBridges[fileName].costFactors
-end
+	if loadedBridges[bridgeName] == nil then
+		local fileName = "./res/config/bridge/" .. bridgeName
+		local env = {}
+		setmetatable(env, {__index=_G})
+		local bridgeFunc = loadfile(fileName, "bt", env)
+		if type(bridgeFunc) == "function" then
+			bridgeFunc()
+			if type(env.data) == "function" then
+				loadedBridges[bridgeName] = env.data()
+				debugPrint(loadedBridges[bridgeName])
+			else
+				print("Incorrect bridge script: " .. fileName)	
+			end
+		else
+			print("Error loading bridge: " .. fileName)
+		end
+	end
+
+	return loadedBridges[bridgeName] and loadedBridges[bridgeName].costFactors
+end ]]
 
 function data()
 	return {
@@ -105,10 +97,6 @@ function data()
 			if currentTime > persistentData.lastMaintenanceCharge + chargeInterval then
 				local settings = getSettings()
 				local extraMaintenanceMult = (settings.maintenanceMultBase * settings.getMultByYear()) - 1
-				-- TODO: This is very fragile...
-				-- chargeExtraMaintenance(extraMaintenanceMult, currentTime - 5)
-
-				debugPrint({"iron cost factors", getBridgeCostFactors("iron.lua")})
 				chargeExtraMaintenance(extraMaintenanceMult)
 				persistentData.lastMaintenanceCharge = currentTime
 			end
@@ -132,10 +120,6 @@ function data()
 				else
 					debug[name](table.unpack(param))
 				end
-			end
-
-			if src == "mod.lua" and id == "loadBridge" then
-				loadedBridges[name] = param
 			end
 		end
 	}

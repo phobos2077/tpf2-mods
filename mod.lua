@@ -33,7 +33,6 @@ local function bridgeCallback(fileName, data)
 	-- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("mod.lua", "loadBridge", fileName, data))
 	if data.cost ~= nil then
 		data.cost = data.cost * multiplier.bridge
-		-- data.costFactors = {1, 1, 1}
 	end
 	return data
 end
@@ -187,7 +186,7 @@ function data()
 
 			game.config.phobos2077.costlyInfrastructure = {
 				getMultByYear = getMultByYear,
-				maintenanceMultBase = 4
+				maintenanceMultBase = 2
 			}
 		end,
 		postRunFn = function(settings, params)

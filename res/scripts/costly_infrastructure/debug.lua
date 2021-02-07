@@ -20,12 +20,6 @@ function debug.printAllEntityComponents(entity)
 	debugPrint(debug.getAllEntityComponents(entity))
 end
 
--- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printTotalEdgeLengths"))
-function debug.printTotalEdgeLengths()
-	debugPrint("Printing edge lengths by type")
-	debugPrint(entity_util.getTotalEdgeLengthsByType())
-end
-
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printTotalEdgeCosts"))
 function debug.printTotalEdgeCosts()
 	debugPrint("Printing edge costs by type")

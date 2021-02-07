@@ -9,31 +9,6 @@ function entity_util.getAllEntitiesByType(type)
     return game.interface.getEntities({radius = 1e10}, {type = type})
 end
 
-function entity_util.getTotalEdgeLengthsByType()
-    local playerId = game.interface.getPlayer()
-    local allEdges = entity_util.getAllEntitiesByType("BASE_EDGE")
-    local result = {street = {}, track = {}}
-    for _, edgeId in pairs(allEdges) do
-        local playerOwned = api.engine.getComponent(edgeId, api.type.ComponentType.PLAYER_OWNED)
-        if playerOwned ~= nil and playerOwned.player == playerId then
-            local network = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
-            if network ~= nil and network.edges ~= nil and network.edges[1] ~= nil then
-                local len = network.edges[1].geometry.length
-                local street = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_STREET)
-                if street ~= nil then
-                    util.incInMultiTable(result.street, street.streetType, street.tramTrackType, len)
-                else
-                    local track = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_TRACK)
-                    if track ~= nil then
-                        util.incInMultiTable(result.track, track.trackType, track.catenary and 1 or 0, len)
-                    end
-                end
-            end
-        end
-    end
-    return result
-end
-
 local function getMultByTramType(tramTrackType)
     if tramTrackType == 1 then
         return 1 + game.config.costs.roadTramLane
@@ -44,7 +19,6 @@ local function getMultByTramType(tramTrackType)
     return 1
 end
 
-
 local function getMultByCatenary(hasCatenary)
     if hasCatenary == 1 then
         return 1 + game.config.costs.railroadCatenary
@@ -52,23 +26,88 @@ local function getMultByCatenary(hasCatenary)
     return 1
 end
 
-function entity_util.getTotalEdgeCostsByType()
-    local lengthsByType = entity_util.getTotalEdgeLengthsByType()
-    local result = {street = 0, track = 1}
-    for streetType, lengthsByTramTrackType in pairs(lengthsByType.street) do
-        local streetConfig = api.res.streetTypeRep.get(streetType)
-        for tramTrackType, len in pairs(lengthsByTramTrackType) do
-            local tramMult = getMultByTramType(tramTrackType)
-            local cost = streetConfig.cost * len * tramMult
-            util.incInTable(result, "street", cost)
-        end
+-- Since API doesn't expose actual costFactors let's use a reasonable default.
+local bridgeCostFactors = {10, 2, 1}
+
+local cachedCosts = {street = {}, track = {}, bridge = {}, tunnel = {}}
+
+local function getCostByType(typeId, cached, repName)
+    if cached[typeId] == nil then
+        local config = api.res[repName].get(typeId)
+        cached[typeId] = config and config.cost or 0
     end
-    for trackType, lengthsByCatenary in pairs(lengthsByType.track) do
-        local trackConfig = api.res.trackTypeRep.get(trackType)
-        for hasCatenary, len in pairs(lengthsByCatenary) do
-            local mult = getMultByCatenary(hasCatenary)
-            local cost = trackConfig.cost * len * mult
-            util.incInTable(result, "track", cost)
+    return cached[typeId]
+end
+
+--- Cost of street edge.
+---@param street userdata
+---@param len number Length in meters.
+---@return number Money cost.
+local function getStreetEdgeCost(street, len)
+    local costPerMeter = getCostByType(street.streetType, cachedCosts.street, "streetTypeRep")
+    local tramMult = getMultByTramType(street.tramTrackType)
+    return costPerMeter * len * tramMult
+end
+
+--- Cost of track edge.
+---@param track userdata
+---@param len number Length in meters.
+---@return number Money cost.
+local function getTrackEdgeCost(track, len)
+    local costPerMeter = getCostByType(track.trackType, cachedCosts.track, "trackTypeRep")
+    local mult = getMultByCatenary(track.catenary and 1 or 0)
+    return costPerMeter * len * mult
+end
+
+local function getBridgeEdgeCost(edge, geometry)
+    local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep")
+	local averageHeight = (geometry.height.x + geometry.height.y) / 2
+
+	-- This formula was deduced to approximate real costs. Actual formula may be different.
+    local mult = (averageHeight / bridgeCostFactors[1]) ^ bridgeCostFactors[2]
+--[[ 	debugPrint("Calculating bridge section. cost=" .. costPerMeter ..
+		", height=" .. averageHeight ..
+		", length=" .. geometry.length ..
+		", result=" .. (costPerMeter * geometry.length * mult)) ]]
+    return costPerMeter * geometry.length * mult
+end
+
+local function getTunnelEdgeCost(edge, len)
+    local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.tunnel, "tunnelTypeRep")
+    return costPerMeter * len
+end
+
+local function getBridgeOrTunnelEdgeCost(edge, geometry)
+    if edge.type == 1 then
+		return getBridgeEdgeCost(edge, geometry)
+	elseif edge.type == 2 then
+		return getTunnelEdgeCost(edge, geometry.length)
+    end
+    return 0
+end
+
+function entity_util.getTotalEdgeCostsByType()
+    local playerId = game.interface.getPlayer()
+    local allEdges = entity_util.getAllEntitiesByType("BASE_EDGE")
+    local result = {street = 0, track = 0}
+    for _, edgeId in pairs(allEdges) do
+        local playerOwned = api.engine.getComponent(edgeId, api.type.ComponentType.PLAYER_OWNED)
+        if playerOwned ~= nil and playerOwned.player == playerId then
+            local network = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
+            if network ~= nil and network.edges ~= nil and network.edges[1] ~= nil then
+				local geometry = network.edges[1].geometry
+                local len = geometry.length
+                local street = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_STREET)
+                local edge = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE)
+                if street ~= nil then
+                    util.incInTable(result, "street", getStreetEdgeCost(street, len) + getBridgeOrTunnelEdgeCost(edge, geometry))
+                else
+                    local track = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_TRACK)
+                    if track ~= nil then
+                        util.incInTable(result, "track", getTrackEdgeCost(track, len) + getBridgeOrTunnelEdgeCost(edge, geometry))
+                    end
+                end
+            end
         end
     end
     return result
