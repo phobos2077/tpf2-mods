@@ -26,6 +26,12 @@ function debug.printTotalEdgeCosts()
 	debugPrint(entity_util.getTotalEdgeCostsByType())
 end
 
+-- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printTotalConstructionMaintenance"))
+function debug.printTotalConstructionMaintenance()
+	debugPrint("Printing construction maintenance costs by type")
+	debugPrint(entity_util.getTotalConstructionMaintenanceByType())
+end
+
 function debug.printConfig()
     debugPrint(game.config.costs)
     debugPrint({modConfig.maintenanceMultBase})

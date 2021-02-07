@@ -29,7 +29,7 @@ local function trackCallback(fileName, data)
 end
 
 local function bridgeCallback(fileName, data)
-	debugPrint({"loadBridge", fileName, data})
+	-- debugPrint({"loadBridge", fileName, data})
 	-- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("mod.lua", "loadBridge", fileName, data))
 	if data.cost ~= nil then
 		data.cost = data.cost * multiplier.bridge
@@ -98,7 +98,7 @@ local function constructionCallback(fileName, data)
 				end
 			end
 			
-			debugPrint({"constr updateFn", fileName, result.cost})
+			-- debugPrint({"constr updateFn", fileName, result.cost})
 			return result
 		end
 	end
@@ -121,7 +121,7 @@ local function moduleCallback(fileName, data)
 			params.modules[slotId].metadata.price = moduleBaseCost * (getMultByYear(params.year) - 1)
 			result.baseCost = (result.baseCost or 0) + moduleBaseCost
 
-			debugPrint({"module updateFn", params.modules[slotId].name, params.modules[slotId].metadata.price})
+			-- debugPrint({"module updateFn", params.modules[slotId].name, params.modules[slotId].metadata.price})
 			
 			return result
 		end
@@ -177,7 +177,7 @@ function data()
 				-- emulating vanilla maintenance based on non-modified costs
 				result.maintenanceCost = result.baseCost / 120
 				
-				debugPrint({"Construct", result.cost, result.baseCost, result.maintenanceCost})
+				-- debugPrint({"Construct", result.cost, result.baseCost, result.maintenanceCost})
 				
 				return result
 			end
@@ -190,7 +190,6 @@ function data()
 			}
 		end,
 		postRunFn = function(settings, params)
-			debugPrint({"postRunFn"})
 		end
 	}
 end

@@ -86,13 +86,17 @@ local function getBridgeOrTunnelEdgeCost(edge, geometry)
     return 0
 end
 
+local function isPlayerOwned(entityId)
+	local playerOwned = api.engine.getComponent(entityId, api.type.ComponentType.PLAYER_OWNED)
+	return playerOwned ~= nil and playerOwned.player == game.interface.getPlayer()
+end
+
 function entity_util.getTotalEdgeCostsByType()
     local playerId = game.interface.getPlayer()
     local allEdges = entity_util.getAllEntitiesByType("BASE_EDGE")
     local result = {street = 0, track = 0}
     for _, edgeId in pairs(allEdges) do
-        local playerOwned = api.engine.getComponent(edgeId, api.type.ComponentType.PLAYER_OWNED)
-        if playerOwned ~= nil and playerOwned.player == playerId then
+        if isPlayerOwned(edgeId) then
             local network = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
             if network ~= nil and network.edges ~= nil and network.edges[1] ~= nil then
 				local geometry = network.edges[1].geometry
@@ -111,6 +115,84 @@ function entity_util.getTotalEdgeCostsByType()
         end
     end
     return result
+end
+
+
+local cachedConstructionTypes = {}
+local function getConstructionTypeByFileName(fileName)
+    if cachedConstructionTypes[fileName] == nil then
+		local index = api.res.constructionRep.find(fileName)
+		if index ~= -1 then
+			local config = api.res.constructionRep.get(index)
+			cachedConstructionTypes[fileName] = config and config.type or ConTypeEnum.NONE
+		else
+			cachedConstructionTypes[fileName] = ConTypeEnum.NONE
+		end
+    end
+    return cachedConstructionTypes[fileName]
+end
+
+--[[ {
+    AIRPORT = 2,
+    AIRPORT_CARGO = 16,
+    ASSET_DEFAULT = 11,
+    ASSET_TRACK = 12,
+    HARBOR = 3,
+    HARBOR_CARGO = 6,
+    INDUSTRY = 10,
+    NONE = 15,
+    RAIL_DEPOT = 8,
+    RAIL_STATION = 1,
+    RAIL_STATION_CARGO = 5,
+    STREET_CONSTRUCTION = 14,
+    STREET_DEPOT = 7,
+    STREET_STATION = 0,
+    STREET_STATION_CARGO = 4,
+    TOWN_BUILDING = 13,
+    WATER_DEPOT = 9,
+  } ]]
+
+local typeByConstructionType = nil
+local function getTypeByConstruction(construction)
+	if typeByConstructionType == nil then
+		local ConTypeEnum = api.type.enum.ConstructionType
+		typeByConstructionType = {
+			[ConTypeEnum.AIRPORT] = "air",
+			[ConTypeEnum.AIRPORT_CARGO] = "air",
+			
+			[ConTypeEnum.HARBOR] = "water",
+			[ConTypeEnum.HARBOR_CARGO] = "water",
+		
+			[ConTypeEnum.RAIL_DEPOT] = "rail",
+			[ConTypeEnum.RAIL_STATION] = "rail",
+			[ConTypeEnum.RAIL_STATION_CARGO] = "rail",
+		
+			[ConTypeEnum.STREET_CONSTRUCTION] = "street",
+			[ConTypeEnum.STREET_DEPOT] = "street",
+			[ConTypeEnum.STREET_STATION] = "street",
+			[ConTypeEnum.STREET_STATION_CARGO] = "street",
+		}
+	end
+	return typeByConstructionType[getConstructionTypeByFileName(construction.fileName)]
+end
+
+function entity_util.getTotalConstructionMaintenanceByType()
+	
+	local allConstructions = entity_util.getAllEntitiesByType("CONSTRUCTION")
+	local result = {street = 0, rail = 0, water = 0, air = 0}
+    for _, id in pairs(allConstructions) do
+		if isPlayerOwned(id) then
+			local construction = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)
+			local maintenanceCost = api.engine.getComponent(id, api.type.ComponentType.MAINTENANCE_COST)
+			if construction ~= nil and maintenanceCost ~= nil then
+				local typeName = getTypeByConstruction(construction)
+				if typeName ~= nil then
+					util.incInTable(result, typeName, maintenanceCost.maintenanceCost)
+				end
+			end
+		end
+	end
+	return result
 end
 
 return entity_util
