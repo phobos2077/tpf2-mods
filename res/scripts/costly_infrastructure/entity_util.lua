@@ -1,4 +1,5 @@
 local util = require 'costly_infrastructure/util'
+local config = require 'costly_infrastructure/config'
 
 local entity_util = {}
 
@@ -28,10 +29,20 @@ end
 
 local cachedCosts = {street = {}, track = {}, bridge = {}, tunnel = {}}
 
-local function getCostByType(typeId, cached, repName)
+--- Un-modded cost by object type.
+---@param typeId number
+---@param cached table
+---@param repName string
+---@param costMultType string
+---@return number
+local function getCostByType(typeId, cached, repName, costMultType)
     if cached[typeId] == nil then
-        local config = api.res[repName].get(typeId)
-        cached[typeId] = config and config.cost or 0
+        local data = api.res[repName].get(typeId)
+		local constructionCost = data and data.cost or 0
+		if constructionCost ~= 0 then
+			constructionCost = constructionCost / config.get().costMultipliers[costMultType]
+		end
+        cached[typeId] = constructionCost
     end
     return cached[typeId]
 end
@@ -41,7 +52,7 @@ end
 ---@param len number Length in meters.
 ---@return number Money cost.
 local function getStreetEdgeCost(street, len)
-    local costPerMeter = getCostByType(street.streetType, cachedCosts.street, "streetTypeRep")
+    local costPerMeter = getCostByType(street.streetType, cachedCosts.street, "streetTypeRep", "street")
     local tramMult = getMultByTramType(street.tramTrackType)
     return costPerMeter * len * tramMult
 end
@@ -51,7 +62,7 @@ end
 ---@param len number Length in meters.
 ---@return number Money cost.
 local function getTrackEdgeCost(track, len)
-    local costPerMeter = getCostByType(track.trackType, cachedCosts.track, "trackTypeRep")
+    local costPerMeter = getCostByType(track.trackType, cachedCosts.track, "trackTypeRep", "track")
     local mult = getMultByCatenary(track.catenary and 1 or 0)
     return costPerMeter * len * mult
 end
@@ -73,7 +84,7 @@ local function getBridgeCostFactors(bridgeId)
 			if type(env.data) == "function" then
 				loadedBridges[bridgeId] = env.data()
 			else
-				print("Incorrect bridge script: " .. fileName)	
+				print("Incorrect bridge script: " .. fileName)
 			end
 		else
 			print("Error loading bridge: " .. fileName)
@@ -84,7 +95,7 @@ local function getBridgeCostFactors(bridgeId)
 end
 
 local function getBridgeEdgeCost(edge, geometry)
-    local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep")
+    local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep", "bridge")
 	local bridgeCostFactors = getBridgeCostFactors(edge.typeIndex)
 	local startPos = geometry.params.pos
 	local endPos = startPos + geometry.params.tangent
@@ -102,7 +113,7 @@ local function getBridgeEdgeCost(edge, geometry)
 end
 
 local function getTunnelEdgeCost(edge, len)
-    local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.tunnel, "tunnelTypeRep")
+    local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.tunnel, "tunnelTypeRep", "tunnel")
     return costPerMeter * len
 end
 
@@ -120,9 +131,11 @@ local function isPlayerOwned(entityId)
 	return playerOwned ~= nil and playerOwned.player == game.interface.getPlayer()
 end
 
+---@return EdgeCostsByType
 function entity_util.getTotalEdgeCostsByType()
     local playerId = game.interface.getPlayer()
     local allEdges = entity_util.getAllEntitiesByType("BASE_EDGE")
+	---@class EdgeCostsByType
     local result = {street = 0, track = 0, len = {street = 0, track = 0}}
     for _, edgeId in pairs(allEdges) do
         if isPlayerOwned(edgeId) then
@@ -155,9 +168,9 @@ local function getConstructionTypeByFileName(fileName)
 		local index = api.res.constructionRep.find(fileName)
 		if index ~= -1 then
 			local config = api.res.constructionRep.get(index)
-			cachedConstructionTypes[fileName] = config and config.type or ConTypeEnum.NONE
+			cachedConstructionTypes[fileName] = config and config.type or false
 		else
-			cachedConstructionTypes[fileName] = ConTypeEnum.NONE
+			cachedConstructionTypes[fileName] = false
 		end
     end
     return cachedConstructionTypes[fileName]
@@ -184,20 +197,23 @@ end
   } ]]
 
 local typeByConstructionType = nil
+---
+---@param construction userdata
+---@return string
 local function getTypeByConstruction(construction)
 	if typeByConstructionType == nil then
 		local ConTypeEnum = api.type.enum.ConstructionType
 		typeByConstructionType = {
 			[ConTypeEnum.AIRPORT] = "air",
 			[ConTypeEnum.AIRPORT_CARGO] = "air",
-			
+
 			[ConTypeEnum.HARBOR] = "water",
 			[ConTypeEnum.HARBOR_CARGO] = "water",
-		
+
 			[ConTypeEnum.RAIL_DEPOT] = "rail",
 			[ConTypeEnum.RAIL_STATION] = "rail",
 			[ConTypeEnum.RAIL_STATION_CARGO] = "rail",
-		
+
 			[ConTypeEnum.STREET_CONSTRUCTION] = "street",
 			[ConTypeEnum.STREET_DEPOT] = "street",
 			[ConTypeEnum.STREET_STATION] = "street",
@@ -207,9 +223,10 @@ local function getTypeByConstruction(construction)
 	return typeByConstructionType[getConstructionTypeByFileName(construction.fileName)]
 end
 
+---@return ConstructionMaintenanceByType
 function entity_util.getTotalConstructionMaintenanceByType()
-	
 	local allConstructions = entity_util.getAllEntitiesByType("CONSTRUCTION")
+	---@class ConstructionMaintenanceByType
 	local result = {street = 0, rail = 0, water = 0, air = 0, num = {}}
     for _, id in pairs(allConstructions) do
 		if isPlayerOwned(id) then

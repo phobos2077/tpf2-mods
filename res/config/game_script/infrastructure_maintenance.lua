@@ -2,15 +2,9 @@ local journal_util = require 'costly_infrastructure/journal_util'
 local entity_util = require 'costly_infrastructure/entity_util'
 local util = require 'costly_infrastructure/util'
 local debug = require 'costly_infrastructure/debug'
+local config = require 'costly_infrastructure/config'
 
 local persistentData = {}
-
--- Vanilla multiplier of maintenance costs based on construction costs.
-local maintenanceCostMult = 1/120
-
-local function getSettings()
-	return game.config.phobos2077.costlyInfrastructure
-end
 
 local function chargeForMaintenance(chargeAmount, carrierType, constructionType)
 	chargeAmount = math.floor(chargeAmount)
@@ -20,25 +14,67 @@ local function chargeForMaintenance(chargeAmount, carrierType, constructionType)
 	return chargeAmount
 end
 
-local function chargeExtraMaintenance(mult)
-	debugPrint("Trying to charge extra maintenance costs, mult = " .. mult)
+--- Charge extra maintenance for all edges (roads and tracks).
+---@param inflationMult number
+---@param edgeMultipliers ConfigObject.EdgeMaintenanceMultipliers
+---@param statData table
+local function chargeExtraEdgeMaintenance(inflationMult, edgeMultipliers, statData)
+	local streetMult = inflationMult * edgeMultipliers.street - 1
+	local trackMult  = inflationMult * edgeMultipliers.track  - 1
 
-	if mult > 0 then
+	if streetMult > 0 or trackMult > 0 then
 		local costsByType = entity_util.getTotalEdgeCostsByType()
-		local maintenanceByType = entity_util.getTotalConstructionMaintenanceByType()
-
-		-- TODO: separate multipliers to balance out different types of maintenance
-		local totalCharged =
-			chargeForMaintenance(costsByType.street * maintenanceCostMult * mult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD) +
-			chargeForMaintenance(costsByType.track  * maintenanceCostMult * mult, journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK) +
-
-			chargeForMaintenance(maintenanceByType.street * mult, journal_util.Enum.Carrier.ROAD,  journal_util.Enum.Construction.INFRASTRUCTURE) +
-			chargeForMaintenance(maintenanceByType.rail   * mult, journal_util.Enum.Carrier.RAIL,  journal_util.Enum.Construction.INFRASTRUCTURE) +
-			chargeForMaintenance(maintenanceByType.water  * mult, journal_util.Enum.Carrier.WATER, journal_util.Enum.Construction.INFRASTRUCTURE) +
-			chargeForMaintenance(maintenanceByType.air    * mult, journal_util.Enum.Carrier.AIR,   journal_util.Enum.Construction.INFRASTRUCTURE)
-
-		debugPrint("Charged extra maintenance costs: " .. totalCharged)
+		local costToMaintenanceMult = config.vanillaMaintenanceCostMult
+		statData.edgeCosts = costsByType
+		return
+			chargeForMaintenance(costsByType.street * costToMaintenanceMult * streetMult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD) +
+			chargeForMaintenance(costsByType.track  * costToMaintenanceMult * trackMult,  journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK) 
 	end
+	return 0
+end
+
+local typeToCarrier = {
+	street = journal_util.Enum.Carrier.ROAD,
+	rail   = journal_util.Enum.Carrier.RAIL,
+	water  = journal_util.Enum.Carrier.WATER,
+	air    = journal_util.Enum.Carrier.AIR
+}
+local function chargeExtraConstructionMaintenance(inflationMult, constructionMultipliers, statData)
+	local needExtraCharge = false
+	local typeToMult = {}
+	local result = 0
+	-- Convert base maintenance cost multipliers to final multipliers (based on inflation mult and minus 1 to account for costs already charged by the game)
+	for typ, mult in pairs(constructionMultipliers) do
+		typeToMult[typ] = inflationMult * mult - 1
+		if typeToMult[typ] > 0 then
+			needExtraCharge = true
+		end
+	end
+
+	if needExtraCharge then
+		local maintenanceByType = entity_util.getTotalConstructionMaintenanceByType()
+		statData.constructionMaintenance = maintenanceByType
+		for typ, mult in pairs(typeToMult) do
+			result = result + chargeForMaintenance(maintenanceByType[typ] * mult, typeToCarrier[typ], journal_util.Enum.Construction.INFRASTRUCTURE)
+		end
+	end
+	return result
+end
+
+local function chargeExtraMaintenance()
+	local configData = config.get()
+	local inflationMult = configData:getMaintenanceInflation()
+	---@class MaintenanceStatData
+	---@field edgeCosts EdgeCostsByType
+	---@field constructionMaintenance ConstructionMaintenanceByType
+	local statData = {}
+	
+	debugPrint({"Trying to charge extra maintenance costs with multipliers ", configData.extraMaintenanceMultipliers})
+	local totalCharged =
+		chargeExtraEdgeMaintenance(inflationMult, configData.extraMaintenanceMultipliers.edge, statData) +
+		chargeExtraConstructionMaintenance(inflationMult, configData.extraMaintenanceMultipliers.construction, statData)
+
+	debugPrint({"Charged extra maintenance costs: " .. totalCharged, statData})
 end
 
 function data()
@@ -57,9 +93,7 @@ function data()
 				persistentData.lastMaintenanceCharge = math.floor(currentTime / chargeInterval) * chargeInterval + 1
 			end
 			if currentTime > persistentData.lastMaintenanceCharge + chargeInterval then
-				local settings = getSettings()
-				local extraMaintenanceMult = (settings.maintenanceMultBase * settings.getMultByYear()) - 1
-				chargeExtraMaintenance(extraMaintenanceMult)
+				chargeExtraMaintenance()
 				persistentData.lastMaintenanceCharge = currentTime
 			end
 		end,

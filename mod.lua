@@ -1,21 +1,9 @@
-local debugger = require "debugger"
 local util = require "costly_infrastructure/util"
+local config = require "costly_infrastructure/config"
 
-local multiplier = {
-	terrain = 4.0,
-	tunnel = 3.0,
-	bridge = 3.0,
-	tracks = 2.0,
-	road   = 4.0,
-	bulldoze_field = 1.0,
 
-	railroadCatenary 		= 1.0, -- original: 0.3
-	roadTramLane 			= 0.3, -- original: 0.2
-	roadElectricTramLane	= 1.0, -- original: 0.4
-}
-
-local inflationFlatness = 80
-local inflationStartYear = 1850
+---@type ConfigObject
+local configData = nil
 
 local loadedModules = {}
 
@@ -23,7 +11,7 @@ local function trackCallback(fileName, data)
 	-- debugPrint({"loadTrack", fileName})
 
 	if data.cost ~= nil then
-		data.cost = data.cost * multiplier.tracks
+		data.cost = data.cost * configData.costMultipliers.track
 	end
 	return data
 end
@@ -32,14 +20,14 @@ local function bridgeCallback(fileName, data)
 	-- debugPrint({"loadBridge", fileName, data})
 	-- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("mod.lua", "loadBridge", fileName, data))
 	if data.cost ~= nil then
-		data.cost = data.cost * multiplier.bridge
+		data.cost = data.cost * configData.costMultipliers.bridge
 	end
 	return data
 end
 
 local function tunnelCallback(fileName, data)
 	if data.cost ~= nil then
-		data.cost = data.cost * multiplier.tunnel
+		data.cost = data.cost * configData.costMultipliers.tunnel
 	end
 	return data
 end
@@ -48,21 +36,9 @@ local function streetCallback(fileName, data)
 	--print(debugger.pretty(data, 10))
 
 	if data ~= nil and data.cost ~= nil then
-		data.cost = data.cost * multiplier.road
+		data.cost = data.cost * configData.costMultipliers.street
 	end
 	return data
-end
-
-local function getMultByYear(year)
-	-- http://fooplot.com/#W3sidHlwZSI6MCwiZXEiOiIoKHgtMTgwMCkvNjQpXjIiLCJjb2xvciI6IiMwMDAwMDAifSx7InR5cGUiOjEwMDAsIndpbmRvdyI6WyIxODUwIiwiMjA1MCIsIjAiLCIyMCJdfV0-
-	-- ((x-1800)/50)^2
-	year = year or game.interface and game.interface.getGameTime().date.year or inflationStartYear
-	local flatness = inflationFlatness
-	local base = (year - inflationStartYear + flatness)/flatness
-	if base < 1 then
-		base = 1
-	end
-	return base * base
 end
 
 local function getModuleBasePrice(moduleName)
@@ -86,7 +62,7 @@ end
 
 local function constructionCallback(fileName, data)
 	-- print(debugger.pretty({fileName, data.type, data.cost}, 10))
-	
+
 	if data.updateFn ~= nil then
 		local updateFn = data.updateFn
 		data.updateFn = function(params)
@@ -94,11 +70,11 @@ local function constructionCallback(fileName, data)
 			if result ~= nil then
 				result.baseCost = result.cost or 0
 				if result.cost ~= nil then
-					result.cost = result.baseCost * getMultByYear(params.year)
+					result.cost = result.baseCost * configData:getConstructionInflation(params.year)
 				end
 			end
-			
-			-- debugPrint({"constr updateFn", fileName, result.cost})
+
+			-- debugPrint({"constr updateFn", fileName, params})
 			return result
 		end
 	end
@@ -109,24 +85,24 @@ end
 local function moduleCallback(fileName, data)
 
 	-- debugPrint({"loadModule", fileName, data.cost and data.cost.price})
-	
+
 	loadedModules[fileName] = data
 
 	if data.updateFn ~= nil then
 		local updateFn = data.updateFn
 		data.updateFn = function(result, transform, tag, slotId, addModelFn, params)
 			updateFn(result, transform, tag, slotId, addModelFn, params)
-			
+
 			local moduleBaseCost = getModuleBasePrice(params.modules[slotId].name)
-			params.modules[slotId].metadata.price = moduleBaseCost * (getMultByYear(params.year) - 1)
+			params.modules[slotId].metadata.price = moduleBaseCost * (configData:getConstructionInflation(params.year) - 1)
 			result.baseCost = (result.baseCost or 0) + moduleBaseCost
 
 			-- debugPrint({"module updateFn", params.modules[slotId].name, params.modules[slotId].metadata.price})
-			
+
 			return result
 		end
 	end
-	
+
 	return data
 end
 
@@ -151,45 +127,41 @@ function data()
 			},
 		},
 		runFn = function (settings, modParams)
+			configData = config.createFromParams(modParams)
+
 			addModifier("loadTrack", trackCallback)
 			addModifier("loadBridge", bridgeCallback)
 			addModifier("loadTunnel", tunnelCallback)
 			addModifier("loadStreet", streetCallback)
 			addModifier("loadModule", moduleCallback)
 			addModifier("loadConstruction", constructionCallback)
-			
+
 			-- terrain change per m^3
 			game.config.costs.terrainRaise = .75 * 18  -- original: .75 * 6.0,
 			game.config.costs.terrainLower = .75 * 14  -- original: .75 * 7.0,
 
 			-- fraction of road/track cost
-			game.config.costs.railroadCatenary = multiplier.railroadCatenary
-			game.config.costs.roadTramLane = multiplier.roadTramLane
-			game.config.costs.roadElectricTramLane = multiplier.roadElectricTramLane
+			game.config.costs.railroadCatenary = configData.costMultipliers.railroadCatenary
+			game.config.costs.roadTramLane = configData.costMultipliers.roadTramLane
+			game.config.costs.roadElectricTramLane = configData.costMultipliers.roadElectricTramLane
 
-			-- game.config.costs.removeField = game.config.costs.removeField * multiplier.bulldoze_field -- original: 200000.0
-			
+			-- game.config.costs.removeField = game.config.costs.removeField * configData.costMultipliers.bulldoze_field -- original: 200000.0
+
 			local constr = game.config.ConstructWithModules
 			game.config.ConstructWithModules = function(params)
 				local result = constr(params)
 				-- result.cost = (result.cost + moduleTotalPrice(params.constrParams.modules)) * getMultByYear(params.year)
-				
+
 				-- emulating vanilla maintenance based on non-modified costs
 				result.maintenanceCost = result.baseCost / 120
-				
+
 				-- debugPrint({"Construct", result.cost, result.baseCost, result.maintenanceCost})
-				
+
 				return result
 			end
-
-			game.config.phobos2077 = game.config.phobos2077 or {}
-
-			game.config.phobos2077.costlyInfrastructure = {
-				getMultByYear = getMultByYear,
-				maintenanceMultBase = 2
-			}
 		end,
 		postRunFn = function(settings, params)
 		end
 	}
 end
+
