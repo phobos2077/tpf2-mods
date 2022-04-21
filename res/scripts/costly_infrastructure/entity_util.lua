@@ -97,8 +97,8 @@ end
 local function getBridgeEdgeCost(edge, geometry)
     local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep", "bridge")
 	local bridgeCostFactors = getBridgeCostFactors(edge.typeIndex)
-	local startPos = geometry.params.pos
-	local endPos = startPos + geometry.params.tangent
+	local startPos = geometry.params.pos[1]
+	local endPos = geometry.params.pos[2]
 	local height1 = geometry.height.x - getHeightAt(startPos)
 	local height2 = geometry.height.y - getHeightAt(endPos)
 	local averageHeight = (height1 + height2) / 2
