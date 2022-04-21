@@ -9,44 +9,33 @@ local inflationStartYear = 1850
 config.vanillaMaintenanceCostMult = 1/120
 
 
+
+
 -- DYNAMIC DATA
 
-local function getDataFromParams(params)
+local function getDataFromParams(params, paramToMult)
+	-- debugPrint({"getDataFromParams", params, paramToMult})
+	local edgeCost = paramToMult[params.mult_edge_cost]
+	local constrCost = paramToMult[params.mult_constr_cost]
+	
 	---@class ConfigObject : ConfigClass
 	local o = {}
 	--- These are applied when charging extra maintenance costs. Multiplied by inflation factor and based on vanilla costs.
 	o.extraMaintenanceMultipliers = {
-		---@class ConfigObject.EdgeMaintenanceMultipliers
-		edge = {
-			street = 4,
-			track = 4,
-		},
-		---@class ConfigObject.ConstructionMaintenanceMultipliers
-		construction = {
-			street = 4,
-			rail = 4,
-			water = 5,
-			air = .7,
-		}
+		edge = edgeCost,
+		construction = constrCost
 	}
 	--- These are applied to loaded resources via modifiers
 	o.costMultipliers = {
-		terrain = 4.0,
-		tunnel = 3.0,
-		bridge = 3.0,
-		track = 2.0,
-		street   = 4.0,
-		bulldoze_field = 1.0,
-
-		railroadCatenary 		= 1.0, -- original: 0.3
-		roadTramLane 			= 0.3, -- original: 0.2
-		roadElectricTramLane	= 1.0, -- original: 0.4
+		terrain = 1.0,
+		tunnel = edgeCost,
+		bridge = edgeCost,
+		track = edgeCost,
+		street   = edgeCost,
+		-- removeField = 1.0
 	}
 	-- More flatness => less inflation at later years.
-	o.inflationFlatness = {
-		construction = 64,
-		maintenance = 64
-	}
+	o.inflationFlatness = 64
 	return o
 end
 
@@ -60,9 +49,10 @@ config.__index = config
 
 --- Create and set mod params. Only call from mod.lua's runFn.
 ---@param params table Mod parameters.
+---@param paramToMult table Maps param values to actual cost multiplier values.
 ---@return ConfigObject Config instance.
-function config.createFromParams(params)
-	local o = getDataFromParams(params)
+function config.createFromParams(params, paramToMult)
+	local o = getDataFromParams(params, paramToMult)
 	setmetatable(o, config)
 
 	game.config.phobos2077 = game.config.phobos2077 or {}
@@ -84,21 +74,13 @@ function config.getInflationByYearAndFlatness(year, flatness)
 	return base * base
 end
 
---- Inflation multiplier for maintenance.
----@param self ConfigObject
----@return number
-function config.getMaintenanceInflation(self)
-	local year = game.interface and game.interface.getGameTime().date.year or inflationStartYear
-	return config.getInflationByYearAndFlatness(year, self.inflationFlatness.maintenance)
-end
-
---- Inflation multiplier for construction based on year.
+--- Inflation multiplier based on year. Used for both construction and maintenance costs.
 ---@param self ConfigObject
 ---@param year number
 ---@return number
-function config.getConstructionInflation(self, year)
+function config.getInflation(self, year)
 	year = year or game.interface and game.interface.getGameTime().date.year or inflationStartYear
-	return config.getInflationByYearAndFlatness(year, self.inflationFlatness.construction)
+	return config.getInflationByYearAndFlatness(year, self.inflationFlatness)
 end
 
 ---@type ConfigClass

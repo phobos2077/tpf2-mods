@@ -3,6 +3,7 @@ local entity_util = require 'costly_infrastructure/entity_util'
 local util = require 'costly_infrastructure/util'
 local debug = require 'costly_infrastructure/debug'
 local config = require 'costly_infrastructure/config'
+local debugger = require "debugger"
 
 local persistentData = {}
 
@@ -16,19 +17,18 @@ end
 
 --- Charge extra maintenance for all edges (roads and tracks).
 ---@param inflationMult number
----@param edgeMultipliers ConfigObject.EdgeMaintenanceMultipliers
+---@param edgeMultiplier number
 ---@param statData table
-local function chargeExtraEdgeMaintenance(inflationMult, edgeMultipliers, statData)
-	local streetMult = inflationMult * edgeMultipliers.street - 1
-	local trackMult  = inflationMult * edgeMultipliers.track  - 1
-
-	if streetMult > 0 or trackMult > 0 then
+local function chargeExtraEdgeMaintenance(inflationMult, edgeMultiplier, statData)
+	local extraChargeMult = inflationMult * edgeMultiplier - 1
+	if extraChargeMult > 0 then
 		local costsByType = entity_util.getTotalEdgeCostsByType()
 		local costToMaintenanceMult = config.vanillaMaintenanceCostMult
 		statData.edgeCosts = costsByType
 		return
-			chargeForMaintenance(costsByType.street * costToMaintenanceMult * streetMult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD) +
-			chargeForMaintenance(costsByType.track  * costToMaintenanceMult * trackMult,  journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK) 
+			-- First multiply by vanilla 1/120 cost-to-maintenance ratio and then by our extra charge multiplier.
+			chargeForMaintenance(costsByType.street * costToMaintenanceMult * extraChargeMult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD) +
+			chargeForMaintenance(costsByType.track  * costToMaintenanceMult * extraChargeMult,  journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK) 
 	end
 	return 0
 end
@@ -39,23 +39,16 @@ local typeToCarrier = {
 	water  = journal_util.Enum.Carrier.WATER,
 	air    = journal_util.Enum.Carrier.AIR
 }
-local function chargeExtraConstructionMaintenance(inflationMult, constructionMultipliers, statData)
-	local needExtraCharge = false
-	local typeToMult = {}
+local function chargeExtraConstructionMaintenance(inflationMult, constructionMultiplier, statData)
 	local result = 0
-	-- Convert base maintenance cost multipliers to final multipliers (based on inflation mult and minus 1 to account for costs already charged by the game)
-	for typ, mult in pairs(constructionMultipliers) do
-		typeToMult[typ] = inflationMult * mult - 1
-		if typeToMult[typ] > 0 then
-			needExtraCharge = true
-		end
-	end
-
-	if needExtraCharge then
+	-- Convert base maintenance cost multiplier to final multiplier (based on inflation mult and minus 1 to account for costs already charged by the game)
+	local extraChargeMult = inflationMult * constructionMultiplier - 1
+	if extraChargeMult > 0 then
 		local maintenanceByType = entity_util.getTotalConstructionMaintenanceByType()
 		statData.constructionMaintenance = maintenanceByType
-		for typ, mult in pairs(typeToMult) do
-			result = result + chargeForMaintenance(maintenanceByType[typ] * mult, typeToCarrier[typ], journal_util.Enum.Construction.INFRASTRUCTURE)
+		for typ, carrierType in pairs(typeToCarrier) do
+			-- Multiply actual un-modded maintenance totals for this type.
+			result = result + chargeForMaintenance(maintenanceByType[typ] * extraChargeMult, carrierType, journal_util.Enum.Construction.INFRASTRUCTURE)
 		end
 	end
 	return result
@@ -63,7 +56,7 @@ end
 
 local function chargeExtraMaintenance()
 	local configData = config.get()
-	local inflationMult = configData:getMaintenanceInflation()
+	local inflationMult = configData:getMInflation()
 	---@class MaintenanceStatData
 	---@field edgeCosts EdgeCostsByType
 	---@field constructionMaintenance ConstructionMaintenanceByType
@@ -98,6 +91,7 @@ function data()
 			end
 		end,
 		guiHandleEvent = function(id, name, param)
+			-- debugPrint({"guiHandleEvent", id, name, param})
 		end,
 		handleEvent = function(src, id, name, param)
 			-- if src ~= "guidesystem.lua" then
