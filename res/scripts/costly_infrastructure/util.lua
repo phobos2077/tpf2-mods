@@ -48,4 +48,27 @@ function util.incInMultiTable(t, ...)
     return util.incInTable(t, key, num)
 end
 
+--- Reduce table values.
+---@param t table
+---@param func function Reduce function(current, value, key).
+---@param result any Initial value.
+function util.reduce(t, func, result)
+    for k, v in pairs(t) do
+        result = func(result, v, k)
+    end
+    return result
+end
+
+--- Sum values from table.
+---@param t table
+---@param selectorFunc function If nil, table values will be summed.
+function util.sum(t, selectorFunc)
+    if selectorFunc == nil then
+        selectorFunc = function (v) return v end
+    end
+    return util.reduce(t, function(sum, value, key)
+        return sum + selectorFunc(value, key)
+    end, 0)
+end
+
 return util

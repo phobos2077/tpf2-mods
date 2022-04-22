@@ -56,7 +56,7 @@ end
 
 local function chargeExtraMaintenance()
 	local configData = config.get()
-	local inflationMult = configData:getMInflation()
+	local inflationMult = configData:getInflation()
 	---@class MaintenanceStatData
 	---@field edgeCosts EdgeCostsByType
 	---@field constructionMaintenance ConstructionMaintenanceByType

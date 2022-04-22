@@ -8,6 +8,30 @@ local configData = nil
 
 local loadedModules = {}
 
+local function modelCallback(fileName, data)
+	if data.metadata ~= nil and data.metadata.signal ~= nil then
+		debugPrint({"loadModel", fileName, data})
+		local cost = data.metadata.cost
+		if cost ~= nil and cost.price ~= nil then
+			local costMult = 1
+			if string.find(fileName, "/model/street/", 1, true) ~= nil then
+				costMult = configData.costMultipliers.street
+			elseif string.find(fileName, "/model/railroad/", 1, true) ~= nil then
+				costMult = configData.costMultipliers.track
+			end
+			cost.price = cost.price * costMult
+		end
+		local origUpdateFn = data.metadata.updateFn
+		data.metadata.updateFn = function(data, ...)
+			if (origUpdateFn ~= nil) then
+				origUpdateFn(data, ...)
+			end
+			debugPrint({"model UpdateFn", data})
+		end
+	end
+	return data
+end
+
 local function trackCallback(fileName, data)
 	-- debugPrint({"loadTrack", fileName, data})
 
@@ -162,6 +186,7 @@ function data()
 		runFn = function (settings, modParams)
 			configData = config.createFromParams(modParams[getCurrentModId()], paramToCostMult)
 
+			addModifier("loadModel", modelCallback)
 			addModifier("loadTrack", trackCallback)
 			addModifier("loadBridge", bridgeCallback)
 			addModifier("loadTunnel", tunnelCallback)
