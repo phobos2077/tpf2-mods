@@ -11,14 +11,17 @@ function entity_util.getAllEntitiesByType(type)
     return game.interface.getEntities({radius = 1e10}, {type = type})
 end
 
-local function getMultByTramType(tramTrackType)
+local function getStreetEdgeMult(tramTrackType, hasBus)
+	local result = 1
     if tramTrackType == 1 then
-        return 1 + game.config.costs.roadTramLane
+        result = result + game.config.costs.roadTramLane
+	elseif tramTrackType == 2 then
+        result = result + game.config.costs.roadElectricTramLane
     end
-    if tramTrackType == 2 then
-        return 1 + game.config.costs.roadElectricTramLane
-    end
-    return 1
+	if hasBus then
+		result = result + game.config.costs.roadBusLane
+	end
+    return result
 end
 
 local function getMultByCatenary(hasCatenary)
@@ -62,7 +65,7 @@ end
 ---@return number Money cost.
 local function getStreetEdgeCost(street, len)
     local costPerMeter = getOriginalCostByType(street.streetType, cachedCosts.street, "streetTypeRep", "street")
-    local tramMult = getMultByTramType(street.tramTrackType)
+    local tramMult = getStreetEdgeMult(street.tramTrackType, street.hasBus)
     return costPerMeter * len * tramMult
 end
 
@@ -77,9 +80,6 @@ local function getTrackEdgeCost(track, len)
 end
 
 local function getHeightAt(pos2d)
-	if pos2d.z ~= nil then
-		pos2d = api.type.Vec2f.new(pos2d.x, pos2d.y)
-	end
 	return api.engine.terrain.getHeightAt(pos2d)
 end
 
@@ -106,7 +106,7 @@ local function getBridgeCostFactors(bridgeId)
 	return loadedBridges[bridgeId] and loadedBridges[bridgeId].costFactors
 end
 
-local function getBridgeEdgeCostOld(edge, geometry)
+local function getBridgeEdgeCost(edge, geometry)
     local costPerMeter = getOriginalCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep", "bridge")
 	local bridgeCostFactors = getBridgeCostFactors(edge.typeIndex)
 	local startPos = geometry.params.pos[1]
@@ -122,22 +122,6 @@ local function getBridgeEdgeCostOld(edge, geometry)
 		", length=" .. geometry.length ..
 		", result=" .. (costPerMeter * geometry.length * mult)) ]]
     return costPerMeter * geometry.length * mult
-end
-
-local function getBridgeEdgeCost(edge, len, startPos, endPos)
-    local costPerMeter = getOriginalCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep", "bridge")
-	local bridgeCostFactors = getBridgeCostFactors(edge.typeIndex)
-	local height1 = startPos.z - getHeightAt(startPos)
-	local height2 = endPos.y - getHeightAt(endPos)
-	local averageHeight = (height1 + height2) / 2
-
-	-- This formula was deduced to approximate real costs. Actual formula may be different.
-    local mult = (averageHeight / bridgeCostFactors[1]) ^ bridgeCostFactors[2]
-  	debugPrint("Calculating bridge section. cost=" .. costPerMeter ..
-	 	", mult=(".. averageHeight .. "/" .. bridgeCostFactors[1] .. ") ^ " .. bridgeCostFactors[2] ..
-		", length=" .. len ..
-		", result=" .. (costPerMeter * len * mult))
-    return costPerMeter * len * mult
 end
 
 local function getTunnelEdgeCost(edge, len)
@@ -172,6 +156,28 @@ local function isPlayerOwned(entityId, playerId)
 	return playerOwned ~= nil and playerOwned.player == playerId
 end
 
+-- We need to find one path of TN edges that connects the actual nodes.
+-- More than one path occurs e.g. for roads (one per lane + one per sidewalk).
+-- Signals and waypoints split the segment into more TN edges.
+local function findUniqueTNPath(tnEdges, edge)
+	local tnPath = {}
+	local lastEdgeId
+	for _, tnEdge in pairs(tnEdges) do
+		-- Modes 1 and 2 are people and cargo - it's used for sidewalks, we should skip it.
+		if tnEdge.transportModes[1] == 0 and tnEdge.transportModes[2] == 0 and (lastEdgeId == nil or tnEdge.conns[1] == lastEdgeId) then
+			table.insert(tnPath, tnEdge)
+			lastEdgeId = tnEdge.conns[2]
+		end
+	end
+	-- Validate path
+	local pathStart = tnPath[1].conns[1].entity
+	local pathEnd = tnPath[#tnPath].conns[2].entity
+	if not (pathStart == edge.node0 and pathEnd == edge.node1) and not (pathStart == edge.node1 and pathEnd == edge.node0) then
+		print("! ERROR: incorrect path! Start/end is "..pathStart.."/"..pathEnd..", but should be "..edge.node0.."/"..edge.node1)
+	end
+	return tnPath
+end
+
 ---@return EdgeCostsByType
 function entity_util.getTotalEdgeCostsByType()
     local playerId = game.interface.getPlayer()
@@ -180,7 +186,7 @@ function entity_util.getTotalEdgeCostsByType()
     local result = {
 		street = 0, track = 0, len = {street = 0, track = 0}, objs = {street = 0, track = 0},
 		addEdge = function (self, key, cost, len, numObjs)
-			debugPrint({"addEdge", key, cost, len, numObjs})
+			-- debugPrint({"addEdge", key, cost, len, numObjs})
 			util.incInTable(self, key, cost)
 			util.incInTable(self.len, key, len)
 			util.incInTable(self.objs, key, numObjs)
@@ -188,32 +194,30 @@ function entity_util.getTotalEdgeCostsByType()
 	}
     for _, edgeId in pairs(allEdges) do
         if isPlayerOwned(edgeId, playerId) then
-			local edge = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE)
 			local street = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_STREET)
 			local track = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_TRACK)
-			local node1 = api.engine.getComponent(edge.node0, api.type.ComponentType.BASE_NODE)
-			local node2 = api.engine.getComponent(edge.node1, api.type.ComponentType.BASE_NODE)
-
-			-- Assume straight lines.. might be very inaccurate for curved roads and tracks...
-			local edgeLength = vector.len3d(node2.position - node1.position)
+			local network = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
+			local edge = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE)
+			local uniqTNPath = findUniqueTNPath(network.edges, edge)
+			local lengthByTN = util.sum(uniqTNPath, function(e) return e.geometry.length end)
 			local typeKey = nil
 			local totalCost = 0
 			if street ~= nil then
 				typeKey = "street"
-				totalCost = getStreetEdgeCost(street, edgeLength)
+				totalCost = getStreetEdgeCost(street, lengthByTN)
 			elseif track ~= nil then
 				typeKey = "track"
-				totalCost = getTrackEdgeCost(track, edgeLength)
+				totalCost = getTrackEdgeCost(track, lengthByTN)
 			end
 			if typeKey ~= nil then
 				local modelsCost, modelsNum = getModelsOnEdgeCost(edge, typeKey)
 				totalCost = totalCost + modelsCost
 				if edge.type == 1 then
-					totalCost = totalCost + getBridgeEdgeCost(edge, edgeLength, node1.position, node2.position)
+					totalCost = totalCost + util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
 				elseif edge.type == 2 then
-					totalCost = totalCost + getTunnelEdgeCost(edge, edgeLength)
+					totalCost = totalCost + getTunnelEdgeCost(edge, lengthByTN)
 				end
-				result:addEdge(typeKey, totalCost, edgeLength, modelsNum)
+				result:addEdge(typeKey, totalCost, lengthByTN, modelsNum)
 			end
         end
     end
@@ -284,11 +288,12 @@ end
 
 ---@return ConstructionMaintenanceByType
 function entity_util.getTotalConstructionMaintenanceByType()
+	local playerId = game.interface.getPlayer()
 	local allConstructions = entity_util.getAllEntitiesByType("CONSTRUCTION")
 	---@class ConstructionMaintenanceByType
 	local result = {street = 0, rail = 0, water = 0, air = 0, num = {}}
     for _, id in pairs(allConstructions) do
-		if isPlayerOwned(id) then
+		if isPlayerOwned(id, playerId) then
 			local construction = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)
 			local maintenanceCost = api.engine.getComponent(id, api.type.ComponentType.MAINTENANCE_COST)
 			if construction ~= nil and maintenanceCost ~= nil then

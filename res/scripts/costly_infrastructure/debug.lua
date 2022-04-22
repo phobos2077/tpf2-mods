@@ -14,6 +14,7 @@ function debug.getAllEntityComponents(entity)
 	return result
 end
 
+-- game.interface.getEntities({radius = 1e10}, {type = "BASE_EDGE"})
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printAllEntityComponents", e))
 function debug.printAllEntityComponents(entity)
 	debugPrint("Printing all components of entity "..entity)
