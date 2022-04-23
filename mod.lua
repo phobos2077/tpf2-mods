@@ -116,16 +116,6 @@ local function moduleCallback(fileName, data)
 	-- debugPrint({"loadModule", fileName, data.cost})
 	loadedModuleCosts[fileName] = data.cost and data.cost.price or nil
 
-	--[[if data.updateFn ~= nil then
-		local updateFn = data.updateFn
-		data.updateFn = function(result, transform, tag, slotId, addModelFn, params)
-			updateFn(result, transform, tag, slotId, addModelFn, params)
-			debugPrint({"module updateFn", params.modules[slotId].metadata})
-
-			return result
-		end
-	end]]
-
 	return data
 end
 
@@ -147,7 +137,7 @@ end
 function data()
 	return {
 		info = {
-			minorVersion = 0,
+			minorVersion = 1,
 			severityAdd = "NONE",
 			severityRemove = "NONE",
 			name = _("mod name"),

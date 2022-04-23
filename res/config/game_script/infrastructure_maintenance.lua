@@ -26,12 +26,12 @@ local function chargeExtraEdgeMaintenance(inflationPerCategory, statData)
 		local costsByType = entity_util.getTotalEdgeCostsByType()
 		local costToMaintMult = config.vanillaMaintenanceCostMult
 		statData.edgeCosts = costsByType
-		return
-			-- First multiply by vanilla 1/120 cost-to-maintenance ratio and then by our extra charge multipliers.
-			chargeForMaintenance(costsByType.street * costToMaintMult * streetMult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD) +
-			chargeForMaintenance(costsByType.track  * costToMaintMult * trackMult,  journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK) 
+		-- First multiply by vanilla 1/120 cost-to-maintenance ratio and then by our extra charge multipliers.
+		local chargedStreet = chargeForMaintenance(costsByType.street * costToMaintMult * streetMult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD)
+		local chargedTrack = chargeForMaintenance(costsByType.track  * costToMaintMult * trackMult,  journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK)
+		util.incInTable(statData.chargedByCategory, "street", chargedStreet)
+		util.incInTable(statData.chargedByCategory, "rail", chargedTrack)
 	end
-	return 0
 end
 
 local typeToCarrier = {
@@ -47,7 +47,6 @@ local typeToCarrier = {
 local function chargeExtraConstructionMaintenance(inflationPerCategory, statData)
 	local needExtraCharge = false
 	local typeToMult = {}
-	local result = 0
 	-- Adjust inflation multipliers (minus 1 to account for costs already charged by the game)
 	for typ, mult in pairs(inflationPerCategory) do
 		typeToMult[typ] = mult - 1
@@ -61,10 +60,10 @@ local function chargeExtraConstructionMaintenance(inflationPerCategory, statData
 		statData.constructionMaintenance = maintenanceByType
 		for typ, mult in pairs(typeToMult) do
 			-- Multiply actual un-modded maintenance totals for this type.
-			result = result + chargeForMaintenance(maintenanceByType[typ] * mult, typeToCarrier[typ], journal_util.Enum.Construction.INFRASTRUCTURE)
+			local chargedAmount = chargeForMaintenance(maintenanceByType[typ] * mult, typeToCarrier[typ], journal_util.Enum.Construction.INFRASTRUCTURE)
+			util.incInTable(statData.chargedByCategory, typ, chargedAmount)
 		end
 	end
-	return result
 end
 
 local function chargeExtraMaintenance()
@@ -73,14 +72,15 @@ local function chargeExtraMaintenance()
 	---@class MaintenanceStatData
 	---@field edgeCosts EdgeCostsByType
 	---@field constructionMaintenance ConstructionMaintenanceByType
-	local statData = {}
+	local statData = {chargedByCategory = util.map(inflationMults, function() return 0 end)}
 
-	debugPrint({"Trying to charge extra maintenance costs", inflationMults})
-	local totalCharged =
-		chargeExtraEdgeMaintenance(inflationMults, statData) +
-		chargeExtraConstructionMaintenance(inflationMults, statData)
+	--debugPrint({"Trying to charge extra maintenance costs", inflationMults})
+	chargeExtraEdgeMaintenance(inflationMults, statData)
+	chargeExtraConstructionMaintenance(inflationMults, statData)
 
-	debugPrint({"Charged extra maintenance costs: " .. totalCharged, statData})
+	local charged = statData.chargedByCategory
+	local total = util.sum(charged)
+	print("Charged extra maintenance costs. Rail: $"..charged.rail..", Road: $"..charged.street..", Water: $"..charged.water..", Air: $"..charged.air..". TOTAL = $"..total)
 end
 
 function data()
