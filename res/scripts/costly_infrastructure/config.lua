@@ -1,3 +1,5 @@
+local util = require "costly_infrastructure/util"
+
 ---@class ConfigClass
 local config = {}
 
@@ -19,7 +21,7 @@ end
 --- Calculates inflation based on year and flatness parameter.
 ---@param year number
 ---@param startYear number
----@param flatness number
+---@param flatness number More flatness => less inflation at later years.
 ---@return number
 local function getInflationByYearAndFlatness(year, startYear, flatness)
 	-- http://fooplot.com/#W3sidHlwZSI6MCwiZXEiOiIoKHgtMTg1MCs4MCkvODApXjIiLCJjb2xvciI6IiMwMDAwMDAifSx7InR5cGUiOjEwMDAsIndpbmRvdyI6WyIxODUwIiwiMjA1MCIsIjAiLCIyMCJdfV0-
@@ -36,23 +38,29 @@ local InflationParams = {}
 InflationParams.__index = InflationParams
 
 ---@return InflationParams
-function InflationParams:new(startYear, endYear, minInflation, maxInflation)
+---@param startYear number Year when inflation starts.
+---@param endYear number Year of maximum inflation.
+---@param baseMultAndMaxInflationByCategory table Maximum inflation at endYear (on top of cost multiplier) - per each category.
+function InflationParams:new(startYear, endYear, baseMultAndMaxInflationByCategory)
 	---@class InflationParams
 	local o = {
-		mult = minInflation,
 		startYear = startYear,
 		endYear = endYear,
-		-- More flatness => less inflation at later years.
-		flatness = getInflationFlatnessByMaxInflation(startYear, endYear, maxInflation / minInflation),
+		paramsByCategory = util.map(baseMultAndMaxInflationByCategory, function(params)
+			local baseMult, maxInflation = table.unpack(params)
+			return {
+				baseMult = baseMult,
+				flatness = getInflationFlatnessByMaxInflation(startYear, endYear, maxInflation)
+			}
+		end),
 	}
 	setmetatable(o, self)
 	return o
 end
 
---- Inflation multiplier based on year. Used for both construction and maintenance costs.
 ---@param year number
 ---@return number
-function InflationParams:get(year)
+function InflationParams:processYear(year)
 	year = year or game.interface and game.interface.getGameTime().date.year or self.startYear
 	-- Cap year to min/max range.
 	if year < self.startYear then
@@ -60,7 +68,33 @@ function InflationParams:get(year)
 	elseif year > self.endYear then
 		year = self.endYear
 	end
-	return self.mult * getInflationByYearAndFlatness(year, self.startYear, self.flatness)
+	return year
+end
+
+--- Inflation multiplier based on year. Used for both construction and maintenance costs.
+---@param category string
+---@param year number
+---@return number
+function InflationParams:get(category, year)
+	year = self:processYear(year)
+	local params = self.paramsByCategory[category]
+	return params.baseMult * getInflationByYearAndFlatness(year, self.startYear, params.flatness)
+end
+
+---@param category string
+---@return number
+function InflationParams:getBaseMult(category)
+	return self.paramsByCategory[category].baseMult
+end
+
+--- Inflation multiplier based on year, for all categories.
+---@param year number
+---@return table
+function InflationParams:getPerCategory(year)
+	year = self:processYear(year)
+	return util.map(self.paramsByCategory, function(params)
+		return params.baseMult * getInflationByYearAndFlatness(year, self.startYear, params.flatness)
+	end)
 end
 
 
@@ -93,65 +127,48 @@ local function valueAsX(v)
 end
 
 local paramTypes = {
-	cost = makeParamTypeData(0.25, 4, 0.25, 1, valueAsPercent),
-	upgrade = makeParamTypeData(1, 4, 1, valueAsX),
-	terrain = makeParamTypeData(1, 4, 1, valueAsX),
-	inflationMin = makeParamTypeData(1, 8, 1, 1, valueAsX),
-	inflationMax = makeParamTypeData(1, 31, 2, 15, valueAsX),
+	cost = makeParamTypeData(0.25, 8, 0.25, 1, valueAsPercent),
+	upgrade = makeParamTypeData(1, 4, 1, 3, valueAsX),
+	terrain = makeParamTypeData(1, 8, 1, 1, valueAsX),
+	inflation = makeParamTypeData(1, 30, 1, 10, valueAsX),
 }
 
 local allParams = {
-	{"inflation_min", paramTypes.inflationMin},
-	{"inflation_max", paramTypes.inflationMax},
-	{"inflation_year_start", makeParamTypeData(1850, 1950, 10)},
-	{"inflation_year_end", makeParamTypeData(2000, 2100, 10)},
-	{"mult_track_cost", paramTypes.cost},
-	{"mult_street_cost", paramTypes.cost},
+	{"mult_street", paramTypes.cost},
+	{"mult_rail", paramTypes.cost},
+	{"mult_water", paramTypes.cost},
+	{"mult_air", paramTypes.cost},
 	{"mult_bridges_tunnels", paramTypes.terrain},
 	{"mult_terrain", paramTypes.terrain},
 	{"mult_upgrade_track", paramTypes.upgrade},
 	{"mult_upgrade_street", paramTypes.upgrade},
+	{"inflation_year_start", makeParamTypeData(1850, 1950, 10)},
+	{"inflation_year_end", makeParamTypeData(2000, 2100, 10, 2020)},
+	{"inflation_street", paramTypes.inflation},
+	{"inflation_rail", paramTypes.inflation},
+	{"inflation_water", paramTypes.inflation},
+	{"inflation_air", paramTypes.inflation},
 }
 
 local function getDataFromParams(params)
-	debugPrint({"getDataFromParams", params})
+	-- debugPrint({"getDataFromParams", params})
 	---@class ConfigObject : ConfigClass
 	local o = {}
-	--- These are applied when charging extra maintenance costs. Multiplied by inflation factor and based on vanilla costs.
-	o.extraMaintenanceMultipliers = {
-		---@class ConfigObject.EdgeCostMultipliers
-		edge = {
-			street = params.mult_street_cost,
-			track = params.mult_track_cost,
-		},
-		---@class ConfigObject.ConstructionCostMultipliers
-		construction = {
-			street = 4,
-			rail = 4,
-			water = 5,
-			air = .7,
-		}
-	}
 	--- These are applied to loaded resources via modifiers
 	o.costMultipliers = {
 		terrain = params.mult_terrain,
 		tunnel = params.mult_bridges_tunnels,
 		bridge = params.mult_bridges_tunnels,
-		track = params.mult_track_cost,
-		street = params.mult_street_cost,
 		trackUpgrades = params.mult_upgrade_track,
-		streetUpgrades = params.mult_upgrade_street,
-
-		-- TODO:
-		---@class ConfigObject.ConstructionCostMultipliers
-		construction = {
-			street = 1,
-			rail = 1,
-			water = 1,
-			air = 1,
-		}
+		streetUpgrades = params.mult_upgrade_street
 	}
-	o.inflation = InflationParams:new(params.inflation_year_start, params.inflation_year_end, params.inflation_min, params.inflation_max)
+	--- These are used for both maintenance (all types) and build costs (stations and depos only).
+	o.inflation = InflationParams:new(params.inflation_year_start, params.inflation_year_end, {
+		street = {params.mult_street, params.inflation_street},
+		rail = {params.mult_rail, params.inflation_rail},
+		water = {params.mult_water, params.inflation_water},
+		air = {params.mult_air, params.inflation_air},
+	})
 	return o
 end
 
@@ -186,15 +203,6 @@ function config.createFromParams(rawParams)
 	game.config.phobos2077 = game.config.phobos2077 or {}
 	game.config.phobos2077.costlyInfrastructure = o
 	return o
-end
-
----@param self ConfigObject
----@param baseCost number
----@param year number
----@return number
-function config:getConstructionCost(baseCost, year)
-	
-	return baseCost * self.costMultipliers.construction
 end
 
 ---@type ConfigClass

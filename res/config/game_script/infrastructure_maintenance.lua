@@ -16,12 +16,11 @@ local function chargeForMaintenance(chargeAmount, carrierType, constructionType)
 end
 
 --- Charge extra maintenance for all edges (roads and tracks).
----@param inflationMult number
----@param edgeMultipliers ConfigObject.EdgeCostMultipliers
+---@param inflationPerCategory table
 ---@param statData table
-local function chargeExtraEdgeMaintenance(inflationMult, edgeMultipliers, statData)
-	local streetMult = inflationMult * edgeMultipliers.street - 1
-	local trackMult  = inflationMult * edgeMultipliers.track  - 1
+local function chargeExtraEdgeMaintenance(inflationPerCategory, statData)
+	local streetMult = inflationPerCategory.street - 1
+	local trackMult  = inflationPerCategory.rail - 1
 
 	if streetMult > 0 or trackMult > 0 then
 		local costsByType = entity_util.getTotalEdgeCostsByType()
@@ -43,16 +42,15 @@ local typeToCarrier = {
 }
 
 --- Charge extra maintenance for all constructions (stations, depos).
----@param inflationMult number
----@param constructionMultipliers ConfigObject.ConstructionCostMultipliers
+---@param inflationPerCategory table
 ---@param statData table
-local function chargeExtraConstructionMaintenance(inflationMult, constructionMultipliers, statData)
+local function chargeExtraConstructionMaintenance(inflationPerCategory, statData)
 	local needExtraCharge = false
 	local typeToMult = {}
 	local result = 0
-	-- Convert base maintenance cost multipliers to final multipliers (based on inflation mult and minus 1 to account for costs already charged by the game)
-	for typ, mult in pairs(constructionMultipliers) do
-		typeToMult[typ] = inflationMult * mult - 1
+	-- Adjust inflation multipliers (minus 1 to account for costs already charged by the game)
+	for typ, mult in pairs(inflationPerCategory) do
+		typeToMult[typ] = mult - 1
 		if typeToMult[typ] > 0 then
 			needExtraCharge = true
 		end
@@ -71,16 +69,16 @@ end
 
 local function chargeExtraMaintenance()
 	local configData = config.get()
-	local inflationMult = configData.inflation:get()
+	local inflationMults = configData.inflation:getPerCategory()
 	---@class MaintenanceStatData
 	---@field edgeCosts EdgeCostsByType
 	---@field constructionMaintenance ConstructionMaintenanceByType
 	local statData = {}
 
-	debugPrint({"Trying to charge extra maintenance costs with multipliers ", configData.extraMaintenanceMultipliers})
+	debugPrint({"Trying to charge extra maintenance costs", inflationMults})
 	local totalCharged =
-		chargeExtraEdgeMaintenance(inflationMult, configData.extraMaintenanceMultipliers.edge, statData) +
-		chargeExtraConstructionMaintenance(inflationMult, configData.extraMaintenanceMultipliers.construction, statData)
+		chargeExtraEdgeMaintenance(inflationMults, statData) +
+		chargeExtraConstructionMaintenance(inflationMults, statData)
 
 	debugPrint({"Charged extra maintenance costs: " .. totalCharged, statData})
 end

@@ -37,14 +37,16 @@ local cachedCosts = {street = {}, track = {}, bridge = {}, tunnel = {}, model = 
 ---@param typeId number
 ---@param cached table
 ---@param repName string
----@param costMultType string
+---@param category string
 ---@return number
-local function getOriginalCostByType(typeId, cached, repName, costMultType)
+local function getOriginalCostByType(typeId, cached, repName, category)
     if cached[typeId] == nil then
         local data = api.res[repName].get(typeId)
 		local constructionCost = data and (data.metadata and data.metadata.cost and data.metadata.cost.price or data.cost) or 0
 		if constructionCost ~= 0 then
-			constructionCost = constructionCost / config.get().costMultipliers[costMultType]
+			local config = config.get()
+			local mult = config.costMultipliers[category] or config.inflation:getBaseMult(category)
+			constructionCost = constructionCost / mult
 		end
         cached[typeId] = constructionCost
     end
@@ -53,10 +55,10 @@ end
 
 --- Cost of model instance.
 ---@param modelId number Model ID.
----@param costMultType string Type of cost mult.
+---@param category string Cost category.
 ---@return number Money cost.
-local function getModelCost(modelId, costMultType)
-    return getOriginalCostByType(modelId, cachedCosts.model, "modelRep", costMultType)
+local function getModelCost(modelId, category)
+    return getOriginalCostByType(modelId, cachedCosts.model, "modelRep", category)
 end
 
 --- Cost of street edge.
@@ -74,7 +76,7 @@ end
 ---@param len number Length in meters.
 ---@return number Money cost.
 local function getTrackEdgeCost(track, len)
-    local costPerMeter = getOriginalCostByType(track.trackType, cachedCosts.track, "trackTypeRep", "track")
+    local costPerMeter = getOriginalCostByType(track.trackType, cachedCosts.track, "trackTypeRep", "rail")
     local mult = getMultByCatenary(track.catenary and 1 or 0)
     return costPerMeter * len * mult
 end
@@ -129,10 +131,11 @@ local function getTunnelEdgeCost(edge, len)
     return costPerMeter * len
 end
 
-local function getModelsOnEdgeCost(edge, costMultType)
+local function getModelsOnEdgeCost(edge, typeKey)
+	local category = typeKey == "street" and "street" or "rail"
 	local function sumInstances(instances)
 		return util.sum(instances, function(inst)
-			 return getModelCost(inst.modelId, costMultType)
+			 return getModelCost(inst.modelId, category)
 		end)
 	end
     if edge.objects ~= nil then

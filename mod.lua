@@ -16,18 +16,11 @@ local function modelCallback(fileName, data)
 		if cost ~= nil and cost.price ~= nil then
 			local costMult = 1
 			if string.find(fileName, "/model/street/", 1, true) ~= nil then
-				costMult = configData.costMultipliers.street
+				costMult = configData.inflation:getBaseMult("street")
 			elseif string.find(fileName, "/model/railroad/", 1, true) ~= nil then
-				costMult = configData.costMultipliers.track
+				costMult = configData.inflation:getBaseMult("rail")
 			end
 			cost.price = cost.price * costMult
-		end
-		local origUpdateFn = data.metadata.updateFn
-		data.metadata.updateFn = function(data, ...)
-			if (origUpdateFn ~= nil) then
-				origUpdateFn(data, ...)
-			end
-			debugPrint({"model UpdateFn", data})
 		end
 	end
 	return data
@@ -37,26 +30,7 @@ local function trackCallback(fileName, data)
 	-- debugPrint({"loadTrack", fileName, data})
 
 	if data.cost ~= nil then
-		data.cost = data.cost * configData.costMultipliers.track
-	end
-	data.updateFn = function(data)
-		debugPrint({"track UpdateFn", data})
-	end
-	return data
-end
-
-local function bridgeCallback(fileName, data)
-	-- debugPrint({"loadBridge", fileName, data})
-	-- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("mod.lua", "loadBridge", fileName, data))
-	if data.cost ~= nil then
-		data.cost = data.cost * configData.costMultipliers.bridge
-	end
-	return data
-end
-
-local function tunnelCallback(fileName, data)
-	if data.cost ~= nil then
-		data.cost = data.cost * configData.costMultipliers.tunnel
+		data.cost = data.cost * configData.inflation:getBaseMult("rail")
 	end
 	return data
 end
@@ -65,7 +39,24 @@ local function streetCallback(fileName, data)
 	--print(debugger.pretty(data, 10))
 
 	if data ~= nil and data.cost ~= nil then
-		data.cost = data.cost * configData.costMultipliers.street
+		data.cost = data.cost * configData.inflation:getBaseMult("street")
+	end
+	return data
+end
+
+local function bridgeCallback(fileName, data)
+	--debugPrint({"loadBridge", fileName, data})
+
+	if data.cost ~= nil then
+		data.cost = data.cost * configData.costMultipliers.bridge
+	end
+	return data
+end
+
+local function tunnelCallback(fileName, data)
+	--debugPrint({"loadTunnel", fileName, data})
+	if data.cost ~= nil then
+		data.cost = data.cost * configData.costMultipliers.tunnel
 	end
 	return data
 end
@@ -86,7 +77,7 @@ local function constructionCallback(fileName, data)
 		local updateFn = data.updateFn
 		data.updateFn = function(params)
 			local result = updateFn(params)
-			local inflation = configData.inflation:get(params.year)
+			local inflation = configData.inflation:get(category, params.year)
 			if result ~= nil then
 				local baseCost = result.cost or 0
 				if result.cost ~= nil then
@@ -96,9 +87,8 @@ local function constructionCallback(fileName, data)
 					for _, mod in pairs(params.modules) do
 						local moduleBaseCost = getModuleBaseCost(mod.name)
 						local inflatedPrice = moduleBaseCost * inflation
-						local priceWithBaseMult = moduleBaseCost * configData.inflation.mult
 						-- Metadata price is applied on top of original price, so we need to subtract base price to avoid over-pricing.
-						mod.metadata.price = inflatedPrice - priceWithBaseMult
+						mod.metadata.price = inflatedPrice - moduleBaseCost
 						if mod.metadata.price < 0 then
 							mod.metadata.price = 0
 						end
@@ -114,7 +104,7 @@ local function constructionCallback(fileName, data)
 				result.maintenanceCost = baseCost / 120
 			end
 
-			debugPrint({"constr updateFn", fileName, category, params.year, params.modules, inflation, result.cost, result.maintenanceCost})
+			--debugPrint({"constr updateFn", fileName, category, params.year, params.modules, inflation, result.cost, result.maintenanceCost})
 			return result
 		end
 	end
@@ -125,10 +115,6 @@ end
 local function moduleCallback(fileName, data)
 	-- debugPrint({"loadModule", fileName, data.cost})
 	loadedModuleCosts[fileName] = data.cost and data.cost.price or nil
-
-	if data.cost ~= nil and data.cost.price ~= nil then
-		data.cost.price = data.cost.price * configData.inflation.mult
-	end
 
 	--[[if data.updateFn ~= nil then
 		local updateFn = data.updateFn
@@ -182,7 +168,7 @@ function data()
 		runFn = function (settings, modParams)
 			configData = config.createFromParams(modParams[getCurrentModId()])
 
-			debugPrint({"runFn", modParams, getCurrentModId(), configData})
+			-- debugPrint({"runFn", modParams, getCurrentModId(), configData})
 
 			addModifier("loadModel", modelCallback)
 			addModifier("loadTrack", trackCallback)
@@ -203,17 +189,6 @@ function data()
 			game.config.costs.roadBusLane = game.config.costs.roadBusLane * configData.costMultipliers.streetUpgrades
 
 			-- game.config.costs.removeField = game.config.costs.removeField * configData.costMultipliers.removeField -- original: 200000.0
-
-			local constr = game.config.ConstructWithModules
-			--[[game.config.ConstructWithModules = function(params)
-				local result = constr(params)
-				-- result.cost = (result.cost + moduleTotalPrice(params.constrParams.modules)) * getMultByYear(params.year)
-
-				-- debugPrint({"Construct", result.cost, result.baseCost, result.maintenanceCost})
-
-				return result
-			end
-			]]
 		end,
 		postRunFn = function(settings, params)
 		end
