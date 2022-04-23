@@ -17,18 +17,20 @@ end
 
 --- Charge extra maintenance for all edges (roads and tracks).
 ---@param inflationMult number
----@param edgeMultiplier number
+---@param edgeMultipliers ConfigObject.EdgeCostMultipliers
 ---@param statData table
-local function chargeExtraEdgeMaintenance(inflationMult, edgeMultiplier, statData)
-	local extraChargeMult = inflationMult * edgeMultiplier - 1
-	if extraChargeMult > 0 then
+local function chargeExtraEdgeMaintenance(inflationMult, edgeMultipliers, statData)
+	local streetMult = inflationMult * edgeMultipliers.street - 1
+	local trackMult  = inflationMult * edgeMultipliers.track  - 1
+
+	if streetMult > 0 or trackMult > 0 then
 		local costsByType = entity_util.getTotalEdgeCostsByType()
-		local costToMaintenanceMult = config.vanillaMaintenanceCostMult
+		local costToMaintMult = config.vanillaMaintenanceCostMult
 		statData.edgeCosts = costsByType
 		return
-			-- First multiply by vanilla 1/120 cost-to-maintenance ratio and then by our extra charge multiplier.
-			chargeForMaintenance(costsByType.street * costToMaintenanceMult * extraChargeMult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD) +
-			chargeForMaintenance(costsByType.track  * costToMaintenanceMult * extraChargeMult,  journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK) 
+			-- First multiply by vanilla 1/120 cost-to-maintenance ratio and then by our extra charge multipliers.
+			chargeForMaintenance(costsByType.street * costToMaintMult * streetMult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD) +
+			chargeForMaintenance(costsByType.track  * costToMaintMult * trackMult,  journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK) 
 	end
 	return 0
 end
@@ -39,16 +41,29 @@ local typeToCarrier = {
 	water  = journal_util.Enum.Carrier.WATER,
 	air    = journal_util.Enum.Carrier.AIR
 }
-local function chargeExtraConstructionMaintenance(inflationMult, constructionMultiplier, statData)
+
+--- Charge extra maintenance for all constructions (stations, depos).
+---@param inflationMult number
+---@param constructionMultipliers ConfigObject.ConstructionCostMultipliers
+---@param statData table
+local function chargeExtraConstructionMaintenance(inflationMult, constructionMultipliers, statData)
+	local needExtraCharge = false
+	local typeToMult = {}
 	local result = 0
-	-- Convert base maintenance cost multiplier to final multiplier (based on inflation mult and minus 1 to account for costs already charged by the game)
-	local extraChargeMult = inflationMult * constructionMultiplier - 1
-	if extraChargeMult > 0 then
+	-- Convert base maintenance cost multipliers to final multipliers (based on inflation mult and minus 1 to account for costs already charged by the game)
+	for typ, mult in pairs(constructionMultipliers) do
+		typeToMult[typ] = inflationMult * mult - 1
+		if typeToMult[typ] > 0 then
+			needExtraCharge = true
+		end
+	end
+
+	if needExtraCharge then
 		local maintenanceByType = entity_util.getTotalConstructionMaintenanceByType()
 		statData.constructionMaintenance = maintenanceByType
-		for typ, carrierType in pairs(typeToCarrier) do
+		for typ, mult in pairs(typeToMult) do
 			-- Multiply actual un-modded maintenance totals for this type.
-			result = result + chargeForMaintenance(maintenanceByType[typ] * extraChargeMult, carrierType, journal_util.Enum.Construction.INFRASTRUCTURE)
+			result = result + chargeForMaintenance(maintenanceByType[typ] * mult, typeToCarrier[typ], journal_util.Enum.Construction.INFRASTRUCTURE)
 		end
 	end
 	return result
@@ -56,12 +71,12 @@ end
 
 local function chargeExtraMaintenance()
 	local configData = config.get()
-	local inflationMult = configData:getInflation()
+	local inflationMult = configData.inflation:get()
 	---@class MaintenanceStatData
 	---@field edgeCosts EdgeCostsByType
 	---@field constructionMaintenance ConstructionMaintenanceByType
 	local statData = {}
-	
+
 	debugPrint({"Trying to charge extra maintenance costs with multipliers ", configData.extraMaintenanceMultipliers})
 	local totalCharged =
 		chargeExtraEdgeMaintenance(inflationMult, configData.extraMaintenanceMultipliers.edge, statData) +

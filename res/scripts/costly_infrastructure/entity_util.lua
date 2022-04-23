@@ -256,14 +256,18 @@ end
     STREET_STATION = 0,
     STREET_STATION_CARGO = 4,
     TOWN_BUILDING = 13,
+	TRACK_CONSTRUCTION = 17,
     WATER_DEPOT = 9,
+	WATER_WAYPOINT = 18,
   } ]]
 
+
+
 local typeByConstructionType = nil
----
----@param construction userdata
+---@param constructionType number|string
 ---@return string
-local function getTypeByConstruction(construction)
+local function getCategoryByConstructionType(constructionType)
+
 	if typeByConstructionType == nil then
 		local ConTypeEnum = api.type.enum.ConstructionType
 		typeByConstructionType = {
@@ -272,6 +276,8 @@ local function getTypeByConstruction(construction)
 
 			[ConTypeEnum.HARBOR] = "water",
 			[ConTypeEnum.HARBOR_CARGO] = "water",
+			[ConTypeEnum.WATER_DEPOT] = "water",
+			[ConTypeEnum.WATER_WAYPOINT] = "water",
 
 			[ConTypeEnum.RAIL_DEPOT] = "rail",
 			[ConTypeEnum.RAIL_STATION] = "rail",
@@ -283,7 +289,35 @@ local function getTypeByConstruction(construction)
 			[ConTypeEnum.STREET_STATION_CARGO] = "street",
 		}
 	end
-	return typeByConstructionType[getConstructionTypeByFileName(construction.fileName)]
+	return typeByConstructionType[constructionType]
+end
+
+---@param fileName string
+---@return string
+local function getCategoryByConstructionFileName(fileName)
+	return getCategoryByConstructionType(getConstructionTypeByFileName(fileName))
+end
+
+local typeByConstructionTypeStr = {
+	AIRPORT = "air",
+	AIRPORT_CARGO = "air",
+
+	HARBOR = "water",
+	HARBOR_CARGO = "water",
+	WATER_DEPOT = "water",
+	WATER_WAYPOINT = "water",
+
+	RAIL_DEPOT = "rail",
+	RAIL_STATION = "rail",
+	RAIL_STATION_CARGO = "rail",
+
+	STREET_CONSTRUCTION = "street",
+	STREET_DEPOT = "street",
+	STREET_STATION = "street",
+	STREET_STATION_CARGO = "street",
+}
+function entity_util.getCategoryByConstructionTypeStr(typeStr)
+	return typeByConstructionTypeStr[typeStr]
 end
 
 ---@return ConstructionMaintenanceByType
@@ -297,10 +331,10 @@ function entity_util.getTotalConstructionMaintenanceByType()
 			local construction = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)
 			local maintenanceCost = api.engine.getComponent(id, api.type.ComponentType.MAINTENANCE_COST)
 			if construction ~= nil and maintenanceCost ~= nil then
-				local typeName = getTypeByConstruction(construction)
-				if typeName ~= nil then
-					util.incInTable(result, typeName, maintenanceCost.maintenanceCost)
-					util.incInTable(result.num, typeName, 1)
+				local category = getCategoryByConstructionFileName(construction.fileName)
+				if category ~= nil then
+					util.incInTable(result, category, maintenanceCost.maintenanceCost)
+					util.incInTable(result.num, category, 1)
 				end
 			end
 		end

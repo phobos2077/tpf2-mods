@@ -1,4 +1,5 @@
 local util = require "costly_infrastructure/util"
+local entity_util = require "costly_infrastructure/entity_util"
 local config = require "costly_infrastructure/config"
 local debugger = require "debugger"
 
@@ -6,11 +7,11 @@ local debugger = require "debugger"
 ---@type ConfigObject
 local configData = nil
 
-local loadedModules = {}
+local loadedModuleCosts = {}
 
 local function modelCallback(fileName, data)
 	if data.metadata ~= nil and data.metadata.signal ~= nil then
-		debugPrint({"loadModel", fileName, data})
+		-- debugPrint({"loadModel", fileName, data})
 		local cost = data.metadata.cost
 		if cost ~= nil and cost.price ~= nil then
 			local costMult = 1
@@ -69,40 +70,51 @@ local function streetCallback(fileName, data)
 	return data
 end
 
-local function getModuleBasePrice(moduleName)
+local function getModuleBaseCost(moduleName)
 	local modulePath = "res/construction/" .. moduleName
 	local price = 0
-	if loadedModules[modulePath] ~= nil and loadedModules[modulePath].cost ~= nil and loadedModules[modulePath].cost.price ~= nil then
-		price = loadedModules[modulePath].cost.price
+	if loadedModuleCosts[modulePath] ~= nil then
+		price = loadedModuleCosts[modulePath]
 	end
 	return price
 end
 
-local function moduleTotalPrice(modules)
-	local sum = 0
-	if modules ~= nil then
-		for id, data in pairs(modules) do
-			sum = sum + getModuleBasePrice(data.name)
-		end
-	end
-	return sum
-end
-
 local function constructionCallback(fileName, data)
 	-- debugPrint({"loadConstruction", fileName, data})
-
-	if data.updateFn ~= nil then
+	local category = entity_util.getCategoryByConstructionTypeStr(data.type)
+	if category ~= nil and data.updateFn ~= nil then
 		local updateFn = data.updateFn
 		data.updateFn = function(params)
 			local result = updateFn(params)
+			local inflation = configData.inflation:get(params.year)
 			if result ~= nil then
-				result.baseCost = result.cost or 0
+				local baseCost = result.cost or 0
 				if result.cost ~= nil then
-					result.cost = result.baseCost * configData:getInflation(params.year)
+					result.cost = baseCost * inflation
 				end
+				if params.modules ~= nil then
+					for _, mod in pairs(params.modules) do
+						local moduleBaseCost = getModuleBaseCost(mod.name)
+						local inflatedPrice = moduleBaseCost * inflation
+						local priceWithBaseMult = moduleBaseCost * configData.inflation.mult
+						-- Metadata price is applied on top of original price, so we need to subtract base price to avoid over-pricing.
+						mod.metadata.price = inflatedPrice - priceWithBaseMult
+						if mod.metadata.price < 0 then
+							mod.metadata.price = 0
+						end
+						-- This doesn't work:
+						-- mod.metadata.bulldozePrice = inflatedPrice * game.config.costs.bulldozeRefundFactor
+
+						baseCost = baseCost + moduleBaseCost
+					end
+				end
+
+				-- Emulating vanilla maintenance based on non-modified costs.
+				-- This is needed for dynamic maintenance costs calculations to work properly.
+				result.maintenanceCost = baseCost / 120
 			end
 
-			-- debugPrint({"constr updateFn", fileName, params})
+			debugPrint({"constr updateFn", fileName, category, params.year, params.modules, inflation, result.cost, result.maintenanceCost})
 			return result
 		end
 	end
@@ -111,43 +123,42 @@ local function constructionCallback(fileName, data)
 end
 
 local function moduleCallback(fileName, data)
+	-- debugPrint({"loadModule", fileName, data.cost})
+	loadedModuleCosts[fileName] = data.cost and data.cost.price or nil
 
-	-- debugPrint({"loadModule", fileName, data.cost and data.cost.price})
+	if data.cost ~= nil and data.cost.price ~= nil then
+		data.cost.price = data.cost.price * configData.inflation.mult
+	end
 
-	loadedModules[fileName] = data
-
-	if data.updateFn ~= nil then
+	--[[if data.updateFn ~= nil then
 		local updateFn = data.updateFn
 		data.updateFn = function(result, transform, tag, slotId, addModelFn, params)
 			updateFn(result, transform, tag, slotId, addModelFn, params)
-
-			local moduleBaseCost = getModuleBasePrice(params.modules[slotId].name)
-			params.modules[slotId].metadata.price = moduleBaseCost * (configData:getInflation(params.year) - 1)
-			result.baseCost = (result.baseCost or 0) + moduleBaseCost
-
-			-- debugPrint({"module updateFn", params.modules[slotId].name, params.modules[slotId].metadata.price})
+			debugPrint({"module updateFn", params.modules[slotId].metadata})
 
 			return result
 		end
-	end
+	end]]
 
 	return data
 end
 
-local function makeParamValuesForMult(min, max, step)
-	local values = {}
-	local paramToMult = {}
-	local i = 0
-	for v = min, max, step do
-		paramToMult[i] = v
-		values[i + 1] = math.floor(v * 100) .. "%"
-		i = i + 1
-	end
-	return paramToMult, values
+---Generate param info for mod settings.
+---@param key string
+---@param paramData ParamTypeData
+---@return table
+local function makeParamInfo(key, paramData)
+	return {
+		key = key,
+		name = _("param "..key),
+		tooltip = _("param "..key.." tip"),
+		uiType = "SLIDER",
+		values = paramData.labels,
+		defaultIndex = paramData.defaultIdx
+	}
 end
 
 function data()
-	local paramToCostMult, costMultParamValues = makeParamValuesForMult(1, 4, 0.5)
 	return {
 		info = {
 			minorVersion = 0,
@@ -164,27 +175,14 @@ function data()
 					steamProfile = "76561198025571704",
 				},
 			},
-			params = {
-				{
-					key = "mult_edge_cost",
-					name = _("param edge cost"),
-					uiType = "SLIDER",
-					values = costMultParamValues,
-					defaultIndex = 0,
-					-- tooltip = _("brutal recommended")
-				},
-				{
-					key = "mult_constr_cost",
-					name = _("param constr cost"),
-					uiType = "SLIDER",
-					values = costMultParamValues,
-					defaultIndex = 0,
-					-- tooltip = _("brutal recommended")
-				}
-			},
+			params = util.map(config.allParams, function(data)
+				return makeParamInfo(data[1], data[2])
+			end)
 		},
 		runFn = function (settings, modParams)
-			configData = config.createFromParams(modParams[getCurrentModId()], paramToCostMult)
+			configData = config.createFromParams(modParams[getCurrentModId()])
+
+			debugPrint({"runFn", modParams, getCurrentModId(), configData})
 
 			addModifier("loadModel", modelCallback)
 			addModifier("loadTrack", trackCallback)
@@ -199,24 +197,23 @@ function data()
 			game.config.costs.terrainLower = game.config.costs.terrainLower * configData.costMultipliers.terrain
 
 			-- fraction of road/track cost
-			-- game.config.costs.railroadCatenary = configData.costMultipliers.railroadCatenary
-			-- game.config.costs.roadTramLane = configData.costMultipliers.roadTramLane
-			-- game.config.costs.roadElectricTramLane = configData.costMultipliers.roadElectricTramLane
+			game.config.costs.railroadCatenary = game.config.costs.railroadCatenary * configData.costMultipliers.trackUpgrades
+			game.config.costs.roadTramLane = game.config.costs.roadTramLane * configData.costMultipliers.streetUpgrades
+			game.config.costs.roadElectricTramLane = game.config.costs.roadElectricTramLane * configData.costMultipliers.streetUpgrades
+			game.config.costs.roadBusLane = game.config.costs.roadBusLane * configData.costMultipliers.streetUpgrades
 
 			-- game.config.costs.removeField = game.config.costs.removeField * configData.costMultipliers.removeField -- original: 200000.0
 
 			local constr = game.config.ConstructWithModules
-			game.config.ConstructWithModules = function(params)
+			--[[game.config.ConstructWithModules = function(params)
 				local result = constr(params)
 				-- result.cost = (result.cost + moduleTotalPrice(params.constrParams.modules)) * getMultByYear(params.year)
-
-				-- emulating vanilla maintenance based on non-modified costs
-				result.maintenanceCost = result.baseCost / 120
 
 				-- debugPrint({"Construct", result.cost, result.baseCost, result.maintenanceCost})
 
 				return result
 			end
+			]]
 		end,
 		postRunFn = function(settings, params)
 		end
