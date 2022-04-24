@@ -33,9 +33,4 @@ function debug.printTotalConstructionMaintenance()
 	debugPrint(entity_util.getTotalConstructionMaintenanceByType())
 end
 
-function debug.printConfig()
-    debugPrint(game.config.costs)
-    debugPrint({modConfig.maintenanceMultBase})
-end
-
 return debug

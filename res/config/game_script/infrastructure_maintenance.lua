@@ -80,7 +80,8 @@ local function chargeExtraMaintenance()
 
 	local charged = statData.chargedByCategory
 	local total = util.sum(charged)
-	print("Charged extra maintenance costs. Rail: $"..charged.rail..", Road: $"..charged.street..", Water: $"..charged.water..", Air: $"..charged.air..". TOTAL = $"..total)
+	print(string.format("Charged extra maintenance costs. Rail: $%d, Road: $%d, Water: $%d, Air: $%d. TOTAL = $%d", charged.rail, charged.street, charged.water, charged.air, total)..
+		string.format("\nCurrent inflation multipliers: Rail: %.2f, Road: %.2f, Water: %.2f, Air: %.2f", inflationMults.rail, inflationMults.street, inflationMults.water, inflationMults.air))
 end
 
 function data()

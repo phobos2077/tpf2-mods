@@ -128,8 +128,8 @@ end
 
 local paramTypes = {
 	cost = makeParamTypeData(0.25, 8, 0.25, 1, valueAsPercent),
-	upgrade = makeParamTypeData(1, 4, 1, 3, valueAsX),
-	terrain = makeParamTypeData(1, 8, 1, 1, valueAsX),
+	upgrade = makeParamTypeData(0.5, 4, 0.5, 3, valueAsX),
+	terrain = makeParamTypeData(0.5, 8, 0.5, 1, valueAsX),
 	inflation = makeParamTypeData(1, 30, 1, 10, valueAsX),
 }
 
