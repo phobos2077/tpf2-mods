@@ -21,6 +21,20 @@ local debugger = require "debugger"
 
 local persistentData = {}
 
+local Category = entity_info.Category
+
+local categoryToCarrier = {
+	[Category.STREET] = journal_util.Enum.Carrier.ROAD,
+	[Category.RAIL]   = journal_util.Enum.Carrier.RAIL,
+	[Category.WATER]  = journal_util.Enum.Carrier.WATER,
+	[Category.AIR]    = journal_util.Enum.Carrier.AIR
+}
+
+local edgeCategoryToConstruction = {
+	[Category.STREET] = journal_util.Enum.Construction.STREET,
+	[Category.RAIL]   = journal_util.Enum.Construction.TRACK,
+}
+
 local function chargeForMaintenance(chargeAmount, carrierType, constructionType)
 	chargeAmount = math.floor(chargeAmount)
 	if math.abs(chargeAmount) >= 1 then
@@ -30,72 +44,57 @@ local function chargeForMaintenance(chargeAmount, carrierType, constructionType)
 end
 
 --- Charge extra maintenance for all edges (roads and tracks).
----@param inflationPerCategory table
+---@param inflationByCategory table
 ---@param statData table
-local function chargeExtraEdgeMaintenance(inflationPerCategory, statData)
-	local streetMult = inflationPerCategory.street - 1
-	local trackMult  = inflationPerCategory.rail - 1
-
-	if streetMult > 0 or trackMult > 0 then
-		local costsByType = entity_info.getTotalEdgeCostsByType()
-		local costToMaintMult = config.vanillaMaintenanceCostMult
-		statData.edgeCosts = costsByType
-		-- First multiply by vanilla 1/120 cost-to-maintenance ratio and then by our extra charge multipliers.
-		local chargedStreet = chargeForMaintenance(costsByType.street * costToMaintMult * streetMult, journal_util.Enum.Carrier.ROAD, journal_util.Enum.Construction.ROAD)
-		local chargedTrack = chargeForMaintenance(costsByType.track  * costToMaintMult * trackMult,  journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK)
-		table_util.incInTable(statData.chargedByCategory, "street", chargedStreet)
-		table_util.incInTable(statData.chargedByCategory, "rail", chargedTrack)
+local function chargeExtraEdgeMaintenance(inflationByCategory, statData)
+	local edgeCostsByCategory
+	for cat, constructionType in pairs(edgeCategoryToConstruction) do
+		-- First multiply by vanilla 1/120 cost-to-maintenance ratio and then by inflation minus 1 to account for maintenance charged by game engine.
+		local finalMult = config.vanillaMaintenanceCostMult * (inflationByCategory[cat] - 1)
+		if finalMult > 0 then
+			edgeCostsByCategory = edgeCostsByCategory or entity_info.getTotalEdgeCostsByCategory()
+			local chargedAmount = chargeForMaintenance(edgeCostsByCategory[cat] * finalMult, categoryToCarrier[cat], constructionType)
+			table_util.incInTable(statData.chargedByCategory, cat, chargedAmount)
+		end
 	end
+	statData.edgeCosts = edgeCostsByCategory
 end
 
-local typeToCarrier = {
-	street = journal_util.Enum.Carrier.ROAD,
-	rail   = journal_util.Enum.Carrier.RAIL,
-	water  = journal_util.Enum.Carrier.WATER,
-	air    = journal_util.Enum.Carrier.AIR
-}
-
 --- Charge extra maintenance for all constructions (stations, depos).
+---@param costMultipliers table
 ---@param inflationPerCategory table
 ---@param statData table
-local function chargeExtraConstructionMaintenance(inflationPerCategory, statData)
-	local needExtraCharge = false
-	local typeToMult = {}
-	-- Adjust inflation multipliers (minus 1 to account for costs already charged by the game)
-	for typ, mult in pairs(inflationPerCategory) do
-		typeToMult[typ] = mult - 1
-		if typeToMult[typ] > 0 then
-			needExtraCharge = true
-		end
-	end
-
-	if needExtraCharge then
-		local maintenanceByType = entity_info.getTotalConstructionMaintenanceByType()
-		statData.constructionMaintenance = maintenanceByType
-		for typ, mult in pairs(typeToMult) do
+local function chargeExtraConstructionMaintenance(costMultipliers, inflationPerCategory, statData)
+	local maintenanceByType
+	for cat, inflation in pairs(inflationPerCategory) do
+		local finalMult = costMultipliers[cat] * inflation - 1
+		if finalMult > 0 then
+			maintenanceByType = maintenanceByType or entity_info.getTotalConstructionMaintenanceByCategory()
 			-- Multiply actual un-modded maintenance totals for this type.
-			local chargedAmount = chargeForMaintenance(maintenanceByType[typ] * mult, typeToCarrier[typ], journal_util.Enum.Construction.INFRASTRUCTURE)
-			table_util.incInTable(statData.chargedByCategory, typ, chargedAmount)
+			local chargedAmount = chargeForMaintenance(maintenanceByType[cat] * finalMult, categoryToCarrier[cat], journal_util.Enum.Construction.STATION)
+			table_util.incInTable(statData.chargedByCategory, cat, chargedAmount)
 		end
 	end
+	statData.constructionMaintenance = maintenanceByType
 end
 
 local function chargeExtraMaintenance()
 	local configData = config.get()
 	local inflationMults = configData.inflation:getPerCategory()
 	---@class MaintenanceStatData
-	---@field edgeCosts EdgeCostsByType
-	---@field constructionMaintenance ConstructionMaintenanceByType
+	---@field edgeCosts EdgeCostsByCategory
+	---@field constructionMaintenance ConstructionMaintenanceByCategory
 	local statData = {chargedByCategory = table_util.map(inflationMults, function() return 0 end)}
-
 	--debugPrint({"Trying to charge extra maintenance costs", inflationMults})
 	chargeExtraEdgeMaintenance(inflationMults, statData)
-	chargeExtraConstructionMaintenance(inflationMults, statData)
+	chargeExtraConstructionMaintenance(configData.costMultipliers, inflationMults, statData)
 
 	local charged = statData.chargedByCategory
 	local total = table_util.sum(charged)
+	local mults = table_util.map(inflationMults, function(infl, cat) return infl * configData.costMultipliers[cat] end)
 	print(string.format("Charged extra maintenance costs. Rail: $%d, Road: $%d, Water: $%d, Air: $%d. TOTAL = $%d", charged.rail, charged.street, charged.water, charged.air, total)..
-		string.format("\nCurrent inflation multipliers: Rail: %.2f, Road: %.2f, Water: %.2f, Air: %.2f", inflationMults.rail, inflationMults.street, inflationMults.water, inflationMults.air))
+		string.format("\nCurrent multipliers: Rail: %.2f, Road: %.2f, Water: %.2f, Air: %.2f", mults.rail, mults.street, mults.water, mults.air))
+	--debugPrint({msg = "Charged Extra Maintenance", stats = statData, inflation = inflationMults, mults = configData.costMultipliers})
 end
 
 function data()

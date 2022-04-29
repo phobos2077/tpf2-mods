@@ -13,6 +13,9 @@ portions of the Software.
 --]]
 
 local table_util = require "lib/table_util"
+local entity_info = require "costly_infrastructure/entity_info"
+
+local Category = entity_info.Category
 
 ---@class ConfigClass
 local config = {}
@@ -54,18 +57,14 @@ InflationParams.__index = InflationParams
 ---@return InflationParams
 ---@param startYear number Year when inflation starts.
 ---@param endYear number Year of maximum inflation.
----@param baseMultAndMaxInflationByCategory table Maximum inflation at endYear (on top of cost multiplier) - per each category.
-function InflationParams:new(startYear, endYear, baseMultAndMaxInflationByCategory)
+---@param maxInflationByCategory table Maximum inflation at endYear (on top of cost multiplier) - per each category.
+function InflationParams:new(startYear, endYear, maxInflationByCategory)
 	---@class InflationParams
 	local o = {
 		startYear = startYear,
 		endYear = endYear,
-		paramsByCategory = table_util.map(baseMultAndMaxInflationByCategory, function(params)
-			local baseMult, maxInflation = table.unpack(params)
-			return {
-				baseMult = baseMult,
-				flatness = getInflationFlatnessByMaxInflation(startYear, endYear, maxInflation)
-			}
+		flatnessByCategory = table_util.map(maxInflationByCategory, function(maxInflation)
+			return getInflationFlatnessByMaxInflation(startYear, endYear, maxInflation)
 		end),
 	}
 	setmetatable(o, self)
@@ -85,20 +84,13 @@ function InflationParams:processYear(year)
 	return year
 end
 
---- Inflation multiplier based on year. Used for both construction and maintenance costs.
+--- Inflation multiplier based on year.
 ---@param category string
 ---@param year number?
 ---@return number
 function InflationParams:get(category, year)
 	year = self:processYear(year)
-	local params = self.paramsByCategory[category]
-	return params.baseMult * getInflationByYearAndFlatness(year, self.startYear, params.flatness)
-end
-
----@param category string
----@return number
-function InflationParams:getBaseMult(category)
-	return self.paramsByCategory[category].baseMult
+	return getInflationByYearAndFlatness(year, self.startYear, self.flatnessByCategory[category])
 end
 
 --- Inflation multiplier based on year, for all categories.
@@ -106,8 +98,8 @@ end
 ---@return table
 function InflationParams:getPerCategory(year)
 	year = self:processYear(year)
-	return table_util.map(self.paramsByCategory, function(params)
-		return params.baseMult * getInflationByYearAndFlatness(year, self.startYear, params.flatness)
+	return table_util.map(self.flatnessByCategory, function(flatness)
+		return getInflationByYearAndFlatness(year, self.startYear, flatness)
 	end)
 end
 
@@ -171,6 +163,10 @@ local function getDataFromParams(params)
 	local o = {}
 	--- These are applied to loaded resources via modifiers
 	o.costMultipliers = {
+		[Category.STREET] = params.mult_street,
+		[Category.RAIL] = params.mult_rail,
+		[Category.WATER] = params.mult_water,
+		[Category.AIR] = params.mult_air,
 		terrain = params.mult_terrain,
 		tunnel = params.mult_bridges_tunnels,
 		bridge = params.mult_bridges_tunnels,
@@ -179,10 +175,10 @@ local function getDataFromParams(params)
 	}
 	--- These are used for both maintenance (all types) and build costs (stations and depos only).
 	o.inflation = InflationParams:new(params.inflation_year_start, params.inflation_year_end, {
-		street = {params.mult_street, params.inflation_street},
-		rail = {params.mult_rail, params.inflation_rail},
-		water = {params.mult_water, params.inflation_water},
-		air = {params.mult_air, params.inflation_air},
+		[Category.STREET] = params.inflation_street,
+		[Category.RAIL] = params.inflation_rail,
+		[Category.WATER] = params.inflation_water,
+		[Category.AIR] = params.inflation_air,
 	})
 	return o
 end

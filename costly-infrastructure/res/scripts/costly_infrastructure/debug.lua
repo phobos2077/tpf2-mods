@@ -24,13 +24,13 @@ end
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printTotalEdgeCosts"))
 function debug.printTotalEdgeCosts()
 	debugPrint("Printing edge costs by type")
-	debugPrint(entity_info.getTotalEdgeCostsByType())
+	debugPrint(entity_info.getTotalEdgeCostsByCategory())
 end
 
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printTotalConstructionMaintenance"))
 function debug.printTotalConstructionMaintenance()
 	debugPrint("Printing construction maintenance costs by type")
-	debugPrint(entity_info.getTotalConstructionMaintenanceByType())
+	debugPrint(entity_info.getTotalConstructionMaintenanceByCategory())
 end
 
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printGameInterface"))

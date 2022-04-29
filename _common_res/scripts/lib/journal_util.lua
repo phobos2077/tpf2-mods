@@ -17,20 +17,30 @@ local journal_util = {}
 
 journal_util.Enum = {
 	Type = {
-		MAINTENANCE = 4
+		LOAN = 0,
+		INTEREST = 1,
+		CONSTRUCTION = 2,
+		ACQUISITION = 3,
+		MAINTENANCE = 4,
+		INCOME = 5,
+		OTHER = 6
 	},
 	Carrier = {
 		ROAD = 0,
 		RAIL = 1,
 		TRAM = 2,
+		OTHER = 3,
 		AIR = 4,
 		WATER = 5,
 	},
 	Construction = {
-		ROAD = 0,
+		STREET = 0,
 		TRACK = 1,
-		INFRASTRUCTURE = 2,
-		BUILDING = 6,
+		SIGNAL = 2,
+		STATION = 3,
+		DEPOT = 4,
+		BULLDOZER = 5,
+		OTHER = 6,
 	}
 }
 

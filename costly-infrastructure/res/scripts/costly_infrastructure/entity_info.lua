@@ -1,6 +1,6 @@
 --[[
 Entity info gathering utilities.
-Version: 1.0
+Version: 1.1
 
 Copyright (c)  2022  phobos2077  (https://steamcommunity.com/id/phobos2077)
 
@@ -14,7 +14,6 @@ portions of the Software.
 --]]
 
 local table_util = require 'lib/table_util'
-local config = require 'costly_infrastructure/config'
 
 local entity_info = {}
 
@@ -24,6 +23,15 @@ local entity_info = {}
 function entity_info.getAllEntitiesByType(type)
     return game.interface.getEntities({radius = 1e10}, {type = type})
 end
+
+local Category = {
+	STREET = "street",
+	RAIL = "rail",
+	WATER = "water",
+	AIR = "air"
+}
+
+entity_info.Category = Category
 
 local function getStreetEdgeMult(tramTrackType, hasBus)
 	local result = 1
@@ -51,16 +59,13 @@ local cachedCosts = {street = {}, track = {}, bridge = {}, tunnel = {}, model = 
 ---@param typeId number
 ---@param cached table
 ---@param repName string
----@param category string
 ---@return number
-local function getOriginalCostByType(typeId, cached, repName, category)
+local function getCostByType(typeId, cached, repName)
     if cached[typeId] == nil then
         local data = api.res[repName].get(typeId)
 		local constructionCost = data and (data.metadata and data.metadata.cost and data.metadata.cost.price or data.cost) or 0
 		if constructionCost ~= 0 then
-			local config = config.get()
-			local mult = config.costMultipliers[category] or config.inflation:getBaseMult(category)
-			constructionCost = constructionCost / mult
+			constructionCost = constructionCost
 		end
         cached[typeId] = constructionCost
     end
@@ -69,10 +74,9 @@ end
 
 --- Cost of model instance.
 ---@param modelId number Model ID.
----@param category string Cost category.
 ---@return number Money cost.
-local function getModelCost(modelId, category)
-    return getOriginalCostByType(modelId, cachedCosts.model, "modelRep", category)
+local function getModelCost(modelId)
+    return getCostByType(modelId, cachedCosts.model, "modelRep")
 end
 
 --- Cost of street edge.
@@ -80,7 +84,7 @@ end
 ---@param len number Length in meters.
 ---@return number Money cost.
 local function getStreetEdgeCost(street, len)
-    local costPerMeter = getOriginalCostByType(street.streetType, cachedCosts.street, "streetTypeRep", "street")
+    local costPerMeter = getCostByType(street.streetType, cachedCosts.street, "streetTypeRep")
     local tramMult = getStreetEdgeMult(street.tramTrackType, street.hasBus)
     return costPerMeter * len * tramMult
 end
@@ -90,7 +94,7 @@ end
 ---@param len number Length in meters.
 ---@return number Money cost.
 local function getTrackEdgeCost(track, len)
-    local costPerMeter = getOriginalCostByType(track.trackType, cachedCosts.track, "trackTypeRep", "rail")
+    local costPerMeter = getCostByType(track.trackType, cachedCosts.track, "trackTypeRep")
     local mult = getMultByCatenary(track.catenary and 1 or 0)
     return costPerMeter * len * mult
 end
@@ -123,7 +127,7 @@ local function getBridgeCostFactors(bridgeId)
 end
 
 local function getBridgeEdgeCost(edge, geometry)
-    local costPerMeter = getOriginalCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep", "bridge")
+    local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep")
 	local bridgeCostFactors = getBridgeCostFactors(edge.typeIndex)
 	local startPos = geometry.params.pos[1]
 	local endPos = geometry.params.pos[2]
@@ -141,15 +145,14 @@ local function getBridgeEdgeCost(edge, geometry)
 end
 
 local function getTunnelEdgeCost(edge, len)
-    local costPerMeter = getOriginalCostByType(edge.typeIndex, cachedCosts.tunnel, "tunnelTypeRep", "tunnel")
+    local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.tunnel, "tunnelTypeRep")
     return costPerMeter * len
 end
 
-local function getModelsOnEdgeCost(edge, typeKey)
-	local category = typeKey == "street" and "street" or "rail"
+local function getModelsOnEdgeCost(edge)
 	local function sumInstances(instances)
 		return table_util.sum(instances, function(inst)
-			 return getModelCost(inst.modelId, category)
+			 return getModelCost(inst.modelId)
 		end)
 	end
     if edge.objects ~= nil then
@@ -195,19 +198,24 @@ local function findUniqueTNPath(tnEdges, edge)
 	return tnPath
 end
 
----@return EdgeCostsByType
-function entity_info.getTotalEdgeCostsByType()
+---@return EdgeCostsByCategory
+function entity_info.getTotalEdgeCostsByCategory()
     local playerId = game.interface.getPlayer()
     local allEdges = entity_info.getAllEntitiesByType("BASE_EDGE")
-	---@class EdgeCostsByType
+	---@class EdgeCostsByCategory
     local result = {
-		street = 0, track = 0, len = {street = 0, track = 0}, objs = {street = 0, track = 0},
-		addEdge = function (self, key, cost, len, numObjs)
-			-- debugPrint({"addEdge", key, cost, len, numObjs})
-			table_util.incInTable(self, key, cost)
-			table_util.incInTable(self.len, key, len)
-			table_util.incInTable(self.objs, key, numObjs)
-		end
+		[Category.STREET] = 0,
+		[Category.RAIL] = 0,
+		len = {
+			[Category.STREET] = 0,
+			[Category.RAIL] = 0,
+			bridge = 0,  -- street and rail include bridge and tunnel lengths
+			tunnel = 0
+		},
+		numObjs = {
+			[Category.STREET] = 0,
+			[Category.RAIL] = 0
+		}
 	}
     for _, edgeId in pairs(allEdges) do
         if isPlayerOwned(edgeId, playerId) then
@@ -217,24 +225,30 @@ function entity_info.getTotalEdgeCostsByType()
 			local edge = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE)
 			local uniqTNPath = findUniqueTNPath(network.edges, edge)
 			local lengthByTN = table_util.sum(uniqTNPath, function(e) return e.geometry.length end)
-			local typeKey = nil
-			local totalCost = 0
+			local category = nil
+			local totalEdgeCost = 0
 			if street ~= nil then
-				typeKey = "street"
-				totalCost = getStreetEdgeCost(street, lengthByTN)
+				category = Category.STREET
+				totalEdgeCost = getStreetEdgeCost(street, lengthByTN)
 			elseif track ~= nil then
-				typeKey = "track"
-				totalCost = getTrackEdgeCost(track, lengthByTN)
+				category = Category.RAIL
+				totalEdgeCost = getTrackEdgeCost(track, lengthByTN)
 			end
-			if typeKey ~= nil then
-				local modelsCost, modelsNum = getModelsOnEdgeCost(edge, typeKey)
-				totalCost = totalCost + modelsCost
+			if category ~= nil then
+				local modelsCost, modelsNum = getModelsOnEdgeCost(edge)
+				totalEdgeCost = totalEdgeCost + modelsCost
+				table_util.incInTable(result.numObjs, category, modelsNum)
 				if edge.type == 1 then
-					totalCost = totalCost + table_util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
+					local bridgeCost = table_util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
+					totalEdgeCost = totalEdgeCost + bridgeCost
+					table_util.incInTable(result.len, "bridge", lengthByTN)
 				elseif edge.type == 2 then
-					totalCost = totalCost + getTunnelEdgeCost(edge, lengthByTN)
+					local tunnelCost = getTunnelEdgeCost(edge, lengthByTN)
+					totalEdgeCost = totalEdgeCost + tunnelCost
+					table_util.incInTable(result.len, "tunnel", lengthByTN)
 				end
-				result:addEdge(typeKey, totalCost, lengthByTN, modelsNum)
+				table_util.incInTable(result, category, totalEdgeCost)
+				table_util.incInTable(result.len, category, lengthByTN)
 			end
         end
     end
@@ -288,22 +302,22 @@ local function getCategoryByConstructionType(constructionType)
 	if typeByConstructionType == nil then
 		local ConTypeEnum = api.type.enum.ConstructionType
 		typeByConstructionType = {
-			[ConTypeEnum.AIRPORT] = "air",
-			[ConTypeEnum.AIRPORT_CARGO] = "air",
+			[ConTypeEnum.AIRPORT] = Category.AIR,
+			[ConTypeEnum.AIRPORT_CARGO] = Category.AIR,
 
-			[ConTypeEnum.HARBOR] = "water",
-			[ConTypeEnum.HARBOR_CARGO] = "water",
-			[ConTypeEnum.WATER_DEPOT] = "water",
-			[ConTypeEnum.WATER_WAYPOINT] = "water",
+			[ConTypeEnum.HARBOR] = Category.WATER,
+			[ConTypeEnum.HARBOR_CARGO] = Category.WATER,
+			[ConTypeEnum.WATER_DEPOT] = Category.WATER,
+			[ConTypeEnum.WATER_WAYPOINT] = Category.WATER,
 
-			[ConTypeEnum.RAIL_DEPOT] = "rail",
-			[ConTypeEnum.RAIL_STATION] = "rail",
-			[ConTypeEnum.RAIL_STATION_CARGO] = "rail",
+			[ConTypeEnum.RAIL_DEPOT] = Category.RAIL,
+			[ConTypeEnum.RAIL_STATION] = Category.RAIL,
+			[ConTypeEnum.RAIL_STATION_CARGO] = Category.RAIL,
 
-			[ConTypeEnum.STREET_CONSTRUCTION] = "street",
-			[ConTypeEnum.STREET_DEPOT] = "street",
-			[ConTypeEnum.STREET_STATION] = "street",
-			[ConTypeEnum.STREET_STATION_CARGO] = "street",
+			[ConTypeEnum.STREET_CONSTRUCTION] = Category.STREET,
+			[ConTypeEnum.STREET_DEPOT] = Category.STREET,
+			[ConTypeEnum.STREET_STATION] = Category.STREET,
+			[ConTypeEnum.STREET_STATION_CARGO] = Category.STREET,
 		}
 	end
 	return typeByConstructionType[constructionType]
@@ -316,33 +330,39 @@ local function getCategoryByConstructionFileName(fileName)
 end
 
 local typeByConstructionTypeStr = {
-	AIRPORT = "air",
-	AIRPORT_CARGO = "air",
+	AIRPORT = Category.AIR,
+	AIRPORT_CARGO = Category.AIR,
 
-	HARBOR = "water",
-	HARBOR_CARGO = "water",
-	WATER_DEPOT = "water",
-	WATER_WAYPOINT = "water",
+	HARBOR = Category.WATER,
+	HARBOR_CARGO = Category.WATER,
+	WATER_DEPOT = Category.WATER,
+	WATER_WAYPOINT = Category.WATER,
 
-	RAIL_DEPOT = "rail",
-	RAIL_STATION = "rail",
-	RAIL_STATION_CARGO = "rail",
+	RAIL_DEPOT = Category.RAIL,
+	RAIL_STATION = Category.RAIL,
+	RAIL_STATION_CARGO = Category.RAIL,
 
-	STREET_CONSTRUCTION = "street",
-	STREET_DEPOT = "street",
-	STREET_STATION = "street",
-	STREET_STATION_CARGO = "street",
+	STREET_CONSTRUCTION = Category.STREET,
+	STREET_DEPOT = Category.STREET,
+	STREET_STATION = Category.STREET,
+	STREET_STATION_CARGO = Category.STREET,
 }
 function entity_info.getCategoryByConstructionTypeStr(typeStr)
 	return typeByConstructionTypeStr[typeStr]
 end
 
----@return ConstructionMaintenanceByType
-function entity_info.getTotalConstructionMaintenanceByType()
+---@return ConstructionMaintenanceByCategory
+function entity_info.getTotalConstructionMaintenanceByCategory()
 	local playerId = game.interface.getPlayer()
 	local allConstructions = entity_info.getAllEntitiesByType("CONSTRUCTION")
-	---@class ConstructionMaintenanceByType
-	local result = {street = 0, rail = 0, water = 0, air = 0, num = {}}
+	---@class ConstructionMaintenanceByCategory
+	local result = {
+		[Category.STREET] = 0,
+		[Category.RAIL] = 0,
+		[Category.WATER] = 0,
+		[Category.AIR] = 0,
+		num = {}
+	}
     for _, id in pairs(allConstructions) do
 		if isPlayerOwned(id, playerId) then
 			local construction = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)

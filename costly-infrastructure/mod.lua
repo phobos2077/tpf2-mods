@@ -18,6 +18,7 @@ local entity_info = require "costly_infrastructure/entity_info"
 local config = require "costly_infrastructure/config"
 local debugger = require "debugger"
 
+local Category = entity_info.Category
 
 ---@type ConfigObject
 local configData = nil
@@ -31,9 +32,9 @@ local function modelCallback(fileName, data)
 		if cost ~= nil and cost.price ~= nil then
 			local costMult = 1
 			if string.find(fileName, "/model/street/", 1, true) ~= nil then
-				costMult = configData.inflation:getBaseMult("street")
+				costMult = configData.costMultipliers[Category.STREET]
 			elseif string.find(fileName, "/model/railroad/", 1, true) ~= nil then
-				costMult = configData.inflation:getBaseMult("rail")
+				costMult = configData.costMultipliers[Category.RAIL]
 			end
 			cost.price = cost.price * costMult
 		end
@@ -45,7 +46,7 @@ local function trackCallback(fileName, data)
 	-- debugPrint({"loadTrack", fileName, data})
 
 	if data.cost ~= nil then
-		data.cost = data.cost * configData.inflation:getBaseMult("rail")
+		data.cost = data.cost * configData.costMultipliers[Category.RAIL]
 	end
 	return data
 end
@@ -54,7 +55,7 @@ local function streetCallback(fileName, data)
 	--print(debugger.pretty(data, 10))
 
 	if data ~= nil and data.cost ~= nil then
-		data.cost = data.cost * configData.inflation:getBaseMult("street")
+		data.cost = data.cost * configData.costMultipliers[Category.STREET]
 	end
 	return data
 end
@@ -93,17 +94,17 @@ local function constructionCallback(fileName, data)
 		data.updateFn = function(params)
 			local result = updateFn(params)
 			local inflation = configData.inflation:get(category, params.year)
+			local finalCostMultiplier = configData.costMultipliers[category] * inflation
 			if result ~= nil then
 				local baseCost = result.cost or 0
 				if result.cost ~= nil then
-					result.cost = baseCost * inflation
+					result.cost = baseCost * finalCostMultiplier
 				end
 				if params.modules ~= nil then
 					for _, mod in pairs(params.modules) do
 						local moduleBaseCost = getModuleBaseCost(mod.name)
-						local inflatedPrice = moduleBaseCost * inflation
 						-- Metadata price is applied on top of original price, so we need to subtract base price to avoid over-pricing.
-						mod.metadata.price = inflatedPrice - moduleBaseCost
+						mod.metadata.price = moduleBaseCost * (finalCostMultiplier - 1)
 						if mod.metadata.price < 0 then
 							mod.metadata.price = 0
 						end
