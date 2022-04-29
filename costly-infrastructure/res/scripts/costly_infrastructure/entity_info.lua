@@ -103,45 +103,35 @@ local function getHeightAt(pos2d)
 	return api.engine.terrain.getHeightAt(pos2d)
 end
 
-local loadedBridges = {}
+local cachedCostFactors = {}
 local function getBridgeCostFactors(bridgeId)
-	if loadedBridges[bridgeId] == nil then
-		local bridgeName = api.res.bridgeTypeRep.getName(bridgeId)
-		local fileName = "./res/config/bridge/" .. bridgeName
-		local env = {}
-		setmetatable(env, {__index=_G})
-		local bridgeFunc = loadfile(fileName, "bt", env)
-		if type(bridgeFunc) == "function" then
-			bridgeFunc()
-			if type(env.data) == "function" then
-				loadedBridges[bridgeId] = env.data()
-			else
-				print("Incorrect bridge script: " .. fileName)
-			end
-		else
-			print("Error loading bridge: " .. fileName)
-		end
+	if cachedCostFactors[bridgeId] == nil then
+		local data = api.res.bridgeTypeRep.get(bridgeId)
+		cachedCostFactors[bridgeId] = data and data.costFactors or false
 	end
-
-	return loadedBridges[bridgeId] and loadedBridges[bridgeId].costFactors
+	return cachedCostFactors[bridgeId]
 end
 
 local function getBridgeEdgeCost(edge, geometry)
     local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep")
 	local bridgeCostFactors = getBridgeCostFactors(edge.typeIndex)
-	local startPos = geometry.params.pos[1]
-	local endPos = geometry.params.pos[2]
-	local height1 = geometry.height.x - getHeightAt(startPos)
-	local height2 = geometry.height.y - getHeightAt(endPos)
-	local averageHeight = (height1 + height2) / 2
+	if bridgeCostFactors then
+		local startPos = geometry.params.pos[1]
+		local endPos = geometry.params.pos[2]
+		local height1 = geometry.height.x - getHeightAt(startPos)
+		local height2 = geometry.height.y - getHeightAt(endPos)
+		local averageHeight = (height1 + height2) / 2
 
-	-- This formula was deduced to approximate real costs. Actual formula may be different.
-    local mult = (averageHeight / bridgeCostFactors[1]) ^ bridgeCostFactors[2]
---[[  	debugPrint("Calculating bridge section. cost=" .. costPerMeter ..
-	 	", mult=(".. averageHeight .. "/" .. bridgeCostFactors[1] .. ") ^ " .. bridgeCostFactors[2] ..
-		", length=" .. geometry.length ..
-		", result=" .. (costPerMeter * geometry.length * mult)) ]]
-    return costPerMeter * geometry.length * mult
+		-- This formula was deduced to approximate real costs. Actual formula may be different.
+		local mult = (averageHeight / bridgeCostFactors[1]) ^ bridgeCostFactors[2]
+	--[[  	debugPrint("Calculating bridge section. cost=" .. costPerMeter ..
+			", mult=(".. averageHeight .. "/" .. bridgeCostFactors[1] .. ") ^ " .. bridgeCostFactors[2] ..
+			", length=" .. geometry.length ..
+			", result=" .. (costPerMeter * geometry.length * mult)) ]]
+		return costPerMeter * geometry.length * mult
+	else
+		return 0
+	end
 end
 
 local function getTunnelEdgeCost(edge, len)
