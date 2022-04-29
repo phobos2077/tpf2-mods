@@ -133,28 +133,28 @@ local function valueAsX(v)
 end
 
 local paramTypes = {
-	cost = makeParamTypeData(0.25, 8, 0.25, 1, valueAsPercent),
-	upgrade = makeParamTypeData(0.5, 4, 0.5, 3, valueAsX),
-	terrain = makeParamTypeData(0.5, 8, 0.5, 1, valueAsX),
-	inflation = makeParamTypeData(1, 30, 1, 10, valueAsX),
+	cost = function(default) return makeParamTypeData(0.25, 8, 0.25, default or 1, valueAsPercent) end,
+	upgrade = function(default) return makeParamTypeData(0.5, 4, 0.5, default or 3, valueAsX) end,
+	terrain = function(default) return makeParamTypeData(0.5, 8, 0.5, default or 1, valueAsX) end,
+	inflation = function(default) return makeParamTypeData(1, 30, 1, default or 10, valueAsX) end,
 }
 
 local allParams = {
-	{"mult_street", paramTypes.cost},
-	{"mult_rail", paramTypes.cost},
-	{"mult_water", paramTypes.cost},
-	{"mult_air", paramTypes.cost},
-	{"mult_bridges_tunnels", paramTypes.terrain},
-	{"mult_terrain", paramTypes.terrain},
-	{"mult_upgrade_track", paramTypes.upgrade},
-	{"mult_upgrade_street", paramTypes.upgrade},
-	{"inflation_year_start", makeParamTypeData(1850, 1950, 10)},
-	{"inflation_year_end", makeParamTypeData(2000, 2100, 10, 2020)},
+	{"mult_street", paramTypes.cost(1.5)},
+	{"mult_rail", paramTypes.cost(2)},
+	{"mult_water", paramTypes.cost(1.5)},
+	{"mult_air", paramTypes.cost(0.5)},
+	{"mult_bridges_tunnels", paramTypes.terrain(3)},
+	{"mult_terrain", paramTypes.terrain(1)},
+	{"mult_upgrade_track", paramTypes.upgrade()},
+	{"mult_upgrade_street", paramTypes.upgrade()},
+	{"inflation_year_start", makeParamTypeData(1850, 1950, 10, 1880)},
+	{"inflation_year_end", makeParamTypeData(2000, 2100, 10, 2000)},
 	--{"inflation_exponent", makeParamTypeData(1,2)}
-	{"inflation_street", paramTypes.inflation},
-	{"inflation_rail", paramTypes.inflation},
-	{"inflation_water", paramTypes.inflation},
-	{"inflation_air", paramTypes.inflation},
+	{"inflation_street", paramTypes.inflation(10)},
+	{"inflation_rail", paramTypes.inflation(15)},
+	{"inflation_water", paramTypes.inflation(10)},
+	{"inflation_air", paramTypes.inflation(10)},
 }
 
 local function getDataFromParams(params)
