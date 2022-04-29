@@ -1,13 +1,12 @@
-local util = require 'costly_infrastructure/util'
-local vector = require 'costly_infrastructure/vector'
+local table_util = require 'lib/table_util'
 local config = require 'costly_infrastructure/config'
 
-local entity_util = {}
+local entity_info = {}
 
 --- Gets all entities on the map with a given type.
 ---@param type string Entitiy type.
 ---@return table A list of entities.
-function entity_util.getAllEntitiesByType(type)
+function entity_info.getAllEntitiesByType(type)
     return game.interface.getEntities({radius = 1e10}, {type = type})
 end
 
@@ -134,12 +133,12 @@ end
 local function getModelsOnEdgeCost(edge, typeKey)
 	local category = typeKey == "street" and "street" or "rail"
 	local function sumInstances(instances)
-		return util.sum(instances, function(inst)
+		return table_util.sum(instances, function(inst)
 			 return getModelCost(inst.modelId, category)
 		end)
 	end
     if edge.objects ~= nil then
-		local totalCost = util.sum(edge.objects, function(obj)
+		local totalCost = table_util.sum(edge.objects, function(obj)
 			local modelEntity = obj[1]
 			local instList = api.engine.getComponent(modelEntity, api.type.ComponentType.MODEL_INSTANCE_LIST)
 			if instList ~= nil then
@@ -182,17 +181,17 @@ local function findUniqueTNPath(tnEdges, edge)
 end
 
 ---@return EdgeCostsByType
-function entity_util.getTotalEdgeCostsByType()
+function entity_info.getTotalEdgeCostsByType()
     local playerId = game.interface.getPlayer()
-    local allEdges = entity_util.getAllEntitiesByType("BASE_EDGE")
+    local allEdges = entity_info.getAllEntitiesByType("BASE_EDGE")
 	---@class EdgeCostsByType
     local result = {
 		street = 0, track = 0, len = {street = 0, track = 0}, objs = {street = 0, track = 0},
 		addEdge = function (self, key, cost, len, numObjs)
 			-- debugPrint({"addEdge", key, cost, len, numObjs})
-			util.incInTable(self, key, cost)
-			util.incInTable(self.len, key, len)
-			util.incInTable(self.objs, key, numObjs)
+			table_util.incInTable(self, key, cost)
+			table_util.incInTable(self.len, key, len)
+			table_util.incInTable(self.objs, key, numObjs)
 		end
 	}
     for _, edgeId in pairs(allEdges) do
@@ -202,7 +201,7 @@ function entity_util.getTotalEdgeCostsByType()
 			local network = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
 			local edge = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE)
 			local uniqTNPath = findUniqueTNPath(network.edges, edge)
-			local lengthByTN = util.sum(uniqTNPath, function(e) return e.geometry.length end)
+			local lengthByTN = table_util.sum(uniqTNPath, function(e) return e.geometry.length end)
 			local typeKey = nil
 			local totalCost = 0
 			if street ~= nil then
@@ -216,7 +215,7 @@ function entity_util.getTotalEdgeCostsByType()
 				local modelsCost, modelsNum = getModelsOnEdgeCost(edge, typeKey)
 				totalCost = totalCost + modelsCost
 				if edge.type == 1 then
-					totalCost = totalCost + util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
+					totalCost = totalCost + table_util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
 				elseif edge.type == 2 then
 					totalCost = totalCost + getTunnelEdgeCost(edge, lengthByTN)
 				end
@@ -319,14 +318,14 @@ local typeByConstructionTypeStr = {
 	STREET_STATION = "street",
 	STREET_STATION_CARGO = "street",
 }
-function entity_util.getCategoryByConstructionTypeStr(typeStr)
+function entity_info.getCategoryByConstructionTypeStr(typeStr)
 	return typeByConstructionTypeStr[typeStr]
 end
 
 ---@return ConstructionMaintenanceByType
-function entity_util.getTotalConstructionMaintenanceByType()
+function entity_info.getTotalConstructionMaintenanceByType()
 	local playerId = game.interface.getPlayer()
-	local allConstructions = entity_util.getAllEntitiesByType("CONSTRUCTION")
+	local allConstructions = entity_info.getAllEntitiesByType("CONSTRUCTION")
 	---@class ConstructionMaintenanceByType
 	local result = {street = 0, rail = 0, water = 0, air = 0, num = {}}
     for _, id in pairs(allConstructions) do
@@ -336,8 +335,8 @@ function entity_util.getTotalConstructionMaintenanceByType()
 			if construction ~= nil and maintenanceCost ~= nil then
 				local category = getCategoryByConstructionFileName(construction.fileName)
 				if category ~= nil then
-					util.incInTable(result, category, maintenanceCost.maintenanceCost)
-					util.incInTable(result.num, category, 1)
+					table_util.incInTable(result, category, maintenanceCost.maintenanceCost)
+					table_util.incInTable(result.num, category, 1)
 				end
 			end
 		end
@@ -345,4 +344,4 @@ function entity_util.getTotalConstructionMaintenanceByType()
 	return result
 end
 
-return entity_util
+return entity_info

@@ -93,7 +93,7 @@ end
 
 --- Sum values from table.
 ---@param t table
----@param selectorFunc function If nil, table values will be summed.
+---@param selectorFunc function? If nil, table values will be summed.
 function util.sum(t, selectorFunc)
     if selectorFunc == nil then
         selectorFunc = function (v) return v end

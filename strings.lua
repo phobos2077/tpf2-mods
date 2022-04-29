@@ -14,15 +14,22 @@ function data()
 	return {
 		en = {
 			["mod name"] = "Rising Infrastructure Costs",
-			["mod desc"] = "Incentifies building optimal infrastructure by increasing maintenance and build costs of various pieces of infrastructure, such as tracks, stations, depos, etc.\n"..
-				"Costs change dynamically as you progress through the years. So at 1850 you will mostly see the default low costs but they will gradually increase.\n\n"..
+			["mod desc"] = "Incentivizes building optimal infrastructure by increasing maintenance and build costs of various pieces of infrastructure, such as tracks, stations, depots, etc.\n"..
+				"Costs change dynamically and non-linearly as you progress through the years. So at 1850 you will mostly see the default low costs but they will gradually increase.\n\n"..
 				"Maintenance costs will keep increasing even for previously constructed pieces of infrastructure, so make sure to get rid of unused stuff to prevent extra costs piling up!\n\n"..
-				"See tooltips for every slider for additional information.",
+				"See tooltips for every slider for additional information.\n\n\n"..
+				"Known issues/limitations:\n\n"..
+				"- Build costs of tracks and roads will not be affected by inflation, due to modding API limitations. But maintenance costs will!\n"..
+				"- Red floating numbers will keep showing the original unmodified maintenance costs. Rest assured, additional fees will be deducted from your account behind the scenes. You can monitor this in Finances window.\n"..
+				"- Refund amounts for individual station modules will still be based on original (lower) module price, so you might get much less money back than you expect. This is also modding API limitation. You can either\n"..
+				"- If you add this mod to existing game where you set Maintenance Cost to something other than 100% and built a bunch of infrastructure, the calculations will be slightly off (in higher or lower direction) because of how the mod works.\n",
 
 			["param inflation_year_start"] = "Inflation Start Year",
 			["param inflation_year_start tip"] = "Infrastructure costs will start to increase at this year.",
 			["param inflation_year_end"] = "Inflation End Year",
 			["param inflation_year_end tip"] = "At this year, infrastructure costs will reach their maximum value and won't increase any further.",
+			["param inflation_exponent"] = "Inflation Curvature",
+			["param inflation_exponent tip"] = "Controls how much curvature the cost/year graph has. Basically changes the exponent of underlying formula, while keeping the max inflation the same.",
 
 			["param inflation_street"] = "Max Inflation: Road",
 			["param inflation_street tip"] = inflationTip.en("Road", "roads"),

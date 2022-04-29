@@ -1,5 +1,5 @@
-local util = require "costly_infrastructure/util"
-local entity_util = require "costly_infrastructure/entity_util"
+local table_util = require "lib/table_util"
+local entity_info = require "costly_infrastructure/entity_info"
 local config = require "costly_infrastructure/config"
 local debugger = require "debugger"
 
@@ -72,7 +72,7 @@ end
 
 local function constructionCallback(fileName, data)
 	-- debugPrint({"loadConstruction", fileName, data})
-	local category = entity_util.getCategoryByConstructionTypeStr(data.type)
+	local category = entity_info.getCategoryByConstructionTypeStr(data.type)
 	if category ~= nil and data.updateFn ~= nil then
 		local updateFn = data.updateFn
 		data.updateFn = function(params)
@@ -151,7 +151,7 @@ function data()
 					steamProfile = "76561198025571704",
 				},
 			},
-			params = util.map(config.allParams, function(data)
+			params = table_util.map(config.allParams, function(data)
 				return makeParamInfo(data[1], data[2])
 			end)
 		},

@@ -1,4 +1,4 @@
-local entity_util = require 'costly_infrastructure/entity_util'
+local entity_info = require 'costly_infrastructure/entity_info'
 
 local debug = {}
 
@@ -24,13 +24,18 @@ end
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printTotalEdgeCosts"))
 function debug.printTotalEdgeCosts()
 	debugPrint("Printing edge costs by type")
-	debugPrint(entity_util.getTotalEdgeCostsByType())
+	debugPrint(entity_info.getTotalEdgeCostsByType())
 end
 
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printTotalConstructionMaintenance"))
 function debug.printTotalConstructionMaintenance()
 	debugPrint("Printing construction maintenance costs by type")
-	debugPrint(entity_util.getTotalConstructionMaintenanceByType())
+	debugPrint(entity_info.getTotalConstructionMaintenanceByType())
+end
+
+-- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printGameInterface"))
+function debug.printGameInterface()
+	debugPrint(game.interface)
 end
 
 return debug

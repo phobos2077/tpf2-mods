@@ -1,4 +1,4 @@
-local util = require "costly_infrastructure/util"
+local table_util = require "lib/table_util"
 
 ---@class ConfigClass
 local config = {}
@@ -46,7 +46,7 @@ function InflationParams:new(startYear, endYear, baseMultAndMaxInflationByCatego
 	local o = {
 		startYear = startYear,
 		endYear = endYear,
-		paramsByCategory = util.map(baseMultAndMaxInflationByCategory, function(params)
+		paramsByCategory = table_util.map(baseMultAndMaxInflationByCategory, function(params)
 			local baseMult, maxInflation = table.unpack(params)
 			return {
 				baseMult = baseMult,
@@ -58,7 +58,7 @@ function InflationParams:new(startYear, endYear, baseMultAndMaxInflationByCatego
 	return o
 end
 
----@param year number
+---@param year number?
 ---@return number
 function InflationParams:processYear(year)
 	year = year or game.interface and game.interface.getGameTime().date.year or self.startYear
@@ -73,7 +73,7 @@ end
 
 --- Inflation multiplier based on year. Used for both construction and maintenance costs.
 ---@param category string
----@param year number
+---@param year number?
 ---@return number
 function InflationParams:get(category, year)
 	year = self:processYear(year)
@@ -88,11 +88,11 @@ function InflationParams:getBaseMult(category)
 end
 
 --- Inflation multiplier based on year, for all categories.
----@param year number
+---@param year number?
 ---@return table
 function InflationParams:getPerCategory(year)
 	year = self:processYear(year)
-	return util.map(self.paramsByCategory, function(params)
+	return table_util.map(self.paramsByCategory, function(params)
 		return params.baseMult * getInflationByYearAndFlatness(year, self.startYear, params.flatness)
 	end)
 end
@@ -144,6 +144,7 @@ local allParams = {
 	{"mult_upgrade_street", paramTypes.upgrade},
 	{"inflation_year_start", makeParamTypeData(1850, 1950, 10)},
 	{"inflation_year_end", makeParamTypeData(2000, 2100, 10, 2020)},
+	--{"inflation_exponent", makeParamTypeData(1,2)}
 	{"inflation_street", paramTypes.inflation},
 	{"inflation_rail", paramTypes.inflation},
 	{"inflation_water", paramTypes.inflation},

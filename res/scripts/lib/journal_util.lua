@@ -19,13 +19,13 @@ journal_util.Enum = {
 	}
 }
 
-function journal_util.bookEntry(amount, entryType, carrierType, constructionType, maintenanceType)
+function journal_util.bookEntry(amount, entryType, carrierType, constructionType, maintenanceType, other)
 	local cat = api.type.JournalEntryCategory.new()
 	cat.type = entryType
 	cat.carrier = carrierType
 	cat.construction = constructionType
 	cat.maintenance = maintenanceType
-	cat.other = 0
+	cat.other = other or 0
 
 	local je = api.type.JournalEntry.new()
 	je.amount = math.floor(amount)
