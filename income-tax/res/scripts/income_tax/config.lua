@@ -26,15 +26,20 @@ local paramTypes = {
 	--bracketRateStep = function(default) return genParamTypeLinear(0.05, 0.20, 0.25, default or 1, fmt.percent) end,
 }
 local k = 1000
-local mil = 1000*1000
+local mil = k*k
 local allParams = {
-	{"bracket_rate_step", config_util.paramType({0.05, 0.10, 0.20}, 2, fmt.percent, "BUTTON")},
+	--[[{"bracket_rate_step", config_util.paramType({0.05, 0.10, 0.20}, 2, fmt.percent, "BUTTON")},
 	{"bracket_rate_min", config_util.genParamTypeLinear(0.00, 0.20, 0.05, 0.00, fmt.percent)},
 	{"bracket_rate_max", config_util.genParamTypeLinear(0.40, 0.95, 0.05, 0.60, fmt.percent)},
-	{"bracket_top_max", config_util.genParamTypeExp(10*mil, 160*mil, 2, 40*mil, fmt.moneyShort)},
+	{"bracket_top_max", config_util.genParamTypeExp(10*mil, 160*mil, 2, 40*mil, fmt.moneyShort)},]]
+
+	{"rate_min", config_util.genParamTypeLinear(0.00, 0.20, 0.05, 0.00, fmt.percent)},
+	{"rate_max", config_util.genParamTypeLinear(0.50, 1.00, 0.05, 0.95, fmt.percent)},
+	{"half_rate_base", config_util.genParamTypeExp(1*mil, 64*mil, 2, 8*mil, fmt.moneyShort)},
+	{"taxable_min_factor", config_util.genParamTypeLinear(0, 0.10, 0.02, 0.10, fmt.percent)},
 }
 
-local function generateTaxBrackets(params)
+--[[local function generateTaxBrackets(params)
 	local brackets = {}
 	local numBrackets = math.floor((params.bracket_rate_max - params.bracket_rate_min) / params.bracket_rate_step) + 1
 	local bracketSize = params.bracket_top_max / (numBrackets - 1)
@@ -45,12 +50,19 @@ local function generateTaxBrackets(params)
 	end
 	return brackets
 end
+]]
 
 local function getDataFromParams(params)
 	-- debugPrint({"getDataFromParams", params})
 	---@class ConfigObject : ConfigClass
 	local o = {}
-	o.taxBrackets = generateTaxBrackets(params)
+	-- o.taxBrackets = generateTaxBrackets(params)
+	o.taxRateParams = {
+		rateMin = params.rate_min,
+		rateMax = params.rate_max,
+		halfRateBase = params.half_rate_base,
+		taxableMin = params.half_rate_base * params.taxable_min_factor
+	}
 	return o
 end
 

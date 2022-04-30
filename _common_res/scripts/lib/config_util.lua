@@ -41,13 +41,13 @@ config_util.fmt = {
         local mil = k*k
         local bil = mil*k
         local postfix = ""
-        if v >= 10*bil then
+        if v >= bil then
             v = v/bil
             postfix = "b"
-        elseif v >= 10*mil then
+        elseif v >= mil then
             v = v/mil
             postfix = "m"
-        elseif v >= 10*k then
+        elseif v >= k then
             v = v/k
             postfix = "k"
         end
@@ -97,18 +97,18 @@ end
 ---@return ParamTypeData
 function config_util.genParamTypeLinear(min, max, step, defaultVal, labelFunc, uiType)
 	local values = {}
-	local defaultIdx = 1
+	local defaultIdx = nil
 	defaultVal = defaultVal or min
 
     local i = 1
-	for v = min, max, step do
+	for v = min, max + step/2, step do -- Add half step to fix issues with small float values
         values[i] = v
-		if v == defaultVal then
+		if defaultIdx == nil and v >= defaultVal then
 			defaultIdx = i
 		end
 		i = i + 1
 	end
-	return config_util.paramType(values, defaultIdx, labelFunc, uiType)
+	return config_util.paramType(values, defaultIdx or 1, labelFunc, uiType)
 end
 
 ---Generate values and value labels for mod parameter based on exponential progression:  val = min*(base^i).
@@ -121,21 +121,21 @@ end
 ---@return ParamTypeData
 function config_util.genParamTypeExp(min, max, base, defaultVal, labelFunc, uiType)
 	local values = {}
-	local defaultIdx = 1
+	local defaultIdx = nil
     base = base or 2
 	defaultVal = defaultVal or min
 
     local i = 0
     local v = min
-	while v < max do
+	while v <= max do
         values[i] = v
-		if v == defaultVal then
+		if defaultIdx ~= nil and v >= defaultVal then
 			defaultIdx = i
 		end
         v = min * (base ^ i)
 		i = i + 1
 	end
-	return config_util.paramType(values, defaultIdx, labelFunc, uiType)
+	return config_util.paramType(values, defaultIdx or 1, labelFunc, uiType)
 end
 
 ---Converts raw params into actual params.

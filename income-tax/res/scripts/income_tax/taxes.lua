@@ -17,9 +17,9 @@ local taxes = {}
 --- Calculate progressive tax based on tax base and brackets.
 ---@param taxBase number
 ---@param taxBrackets table
----@return ProgressiveTaxResult
-function taxes.calculateProgressiveTax(taxBase, taxBrackets)
-    ---@class ProgressiveTaxResult
+---@return ProgressiveArctanTaxResult
+function taxes.calculateProgressiveTaxBrackets(taxBase, taxBrackets)
+    ---@class ProgressiveArctanTaxResult
 	local tax = {total = 0, base = taxBase, brackets = {}}
 	local lastTop = 0
 	for i, bracket in ipairs(taxBrackets) do
@@ -37,6 +37,24 @@ function taxes.calculateProgressiveTax(taxBase, taxBrackets)
 		lastTop = top
 	end
 	tax.averageRate = tax.total / taxBase
+	return tax
+end
+
+--- Calculate progressive tax based on tax base and arctangent function.
+---@param taxBase number Taxable base (typically income).
+---@param rateMin number Minimum tax rate [0..1].
+---@param rateMax number Maximum tax rate. Function will never actually achieve the max, but will infinitely tend to it.
+---@param halfRateBase number Amount of tax base, at which rate will be squarly between it's min and max values.
+---@param taxableMin number Minimum amount of tax base to start increasing tax rate above the minimum. Capped at 50% of halfRateBase and values over 10% may lead to wierd net income curves.
+---@return ProgressiveArctanTaxResult
+function taxes.calculateProgressiveTaxArcTan(taxBase, rateMin, rateMax, halfRateBase, taxableMin)
+    ---@class ProgressiveArctanTaxResult
+	local tax = {base = taxBase}
+	taxableMin = math.min(halfRateBase*0.5, taxableMin)
+	tax.rate = math.max(
+		math.atan((taxBase - taxableMin) / (halfRateBase - taxableMin)) * 2/math.pi * (rateMax - rateMin) + rateMin,
+		rateMin)
+	tax.total = math.floor(taxBase * tax.rate)
 	return tax
 end
 
