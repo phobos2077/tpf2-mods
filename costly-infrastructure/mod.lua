@@ -14,6 +14,7 @@ portions of the Software.
 
 
 local table_util = require "lib/table_util"
+local config_util = require "lib/config_util"
 local entity_info = require "costly_infrastructure/entity_info"
 local config = require "costly_infrastructure/config"
 local debugger = require "debugger"
@@ -135,21 +136,6 @@ local function moduleCallback(fileName, data)
 	return data
 end
 
----Generate param info for mod settings.
----@param key string
----@param paramData ParamTypeData
----@return table
-local function makeParamInfo(key, paramData)
-	return {
-		key = key,
-		name = _("param "..key),
-		tooltip = _("param "..key.." tip"),
-		uiType = "SLIDER",
-		values = paramData.labels,
-		defaultIndex = paramData.defaultIdx
-	}
-end
-
 function data()
 	return {
 		info = {
@@ -167,9 +153,7 @@ function data()
 					steamProfile = "76561198025571704",
 				},
 			},
-			params = table_util.map(config.allParams, function(data)
-				return makeParamInfo(data[1], data[2])
-			end)
+			params = config_util.makeModParams(config.allParams)
 		},
 		runFn = function (settings, modParams)
 			configData = config.createFromParams(modParams[getCurrentModId()])

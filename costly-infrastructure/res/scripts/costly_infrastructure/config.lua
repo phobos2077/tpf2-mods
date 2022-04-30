@@ -13,6 +13,7 @@ portions of the Software.
 --]]
 
 local table_util = require "lib/table_util"
+local config_util = require "lib/config_util"
 local entity_info = require "costly_infrastructure/entity_info"
 
 local Category = entity_info.Category
@@ -104,25 +105,7 @@ function InflationParams:getPerCategory(year)
 end
 
 
-local function makeParamTypeData(min, max, step, defaultVal, labelFunc)
-	local labels = {}
-	local idxToVal = {}
-	local i = 0
-	local defaultIdx = 0
-	defaultVal = defaultVal or min
-	labelFunc = labelFunc or function(v) return ""..v end
-	for v = min, max, step do
-		idxToVal[i] = v
-		labels[i + 1] = labelFunc(v, i)
-		if v == defaultVal then
-			defaultIdx = i
-		end
-		i = i + 1
-	end
-	--- @class ParamTypeData
-	local data = {values = idxToVal, labels = labels, defaultIdx = defaultIdx}
-	return data
-end
+
 
 local function valueAsPercent(v)
 	return math.floor(v * 100) .. "%"
@@ -132,11 +115,14 @@ local function valueAsX(v)
 	return v .. "x"
 end
 
+local makeSliderData = config_util.makeParamTypeDataForSlider
+
 local paramTypes = {
-	cost = function(default) return makeParamTypeData(0.25, 8, 0.25, default or 1, valueAsPercent) end,
-	upgrade = function(default) return makeParamTypeData(0.5, 4, 0.5, default or 3, valueAsX) end,
-	terrain = function(default) return makeParamTypeData(0.5, 8, 0.5, default or 1, valueAsX) end,
-	inflation = function(default) return makeParamTypeData(1, 30, 1, default or 10, valueAsX) end,
+	cost = function(default) return makeSliderData(0.25, 8, 0.25, default or 1, valueAsPercent) end,
+	upgrade = function(default) return makeSliderData(0.5, 4, 0.5, default or 3, valueAsX) end,
+	terrain = function(default) return makeSliderData(0.5, 8, 0.5, default or 1, valueAsX) end,
+	inflation = function(default) return makeSliderData(1, 30, 1, default or 10, valueAsX) end,
+	year = function (min, max, default)	return makeSliderData(min, max, 10, default) end,
 }
 
 local allParams = {
@@ -148,9 +134,8 @@ local allParams = {
 	{"mult_terrain", paramTypes.terrain(1)},
 	{"mult_upgrade_track", paramTypes.upgrade()},
 	{"mult_upgrade_street", paramTypes.upgrade()},
-	{"inflation_year_start", makeParamTypeData(1850, 1950, 10, 1880)},
-	{"inflation_year_end", makeParamTypeData(2000, 2100, 10, 2000)},
-	--{"inflation_exponent", makeParamTypeData(1,2)}
+	{"inflation_year_start", paramTypes.year(1850, 1950, 1880)},
+	{"inflation_year_end", paramTypes.year(2000, 2100, 2000)},
 	{"inflation_street", paramTypes.inflation(10)},
 	{"inflation_rail", paramTypes.inflation(15)},
 	{"inflation_water", paramTypes.inflation(10)},
@@ -198,17 +183,7 @@ config.allParams = allParams
 ---@return ConfigObject Config instance.
 function config.createFromParams(rawParams)
 	-- debugPrint({"createFromParams", rawParams})
-	local actualParams = {}
-	for _, data in pairs(allParams) do
-		local paramId = data[1]
-		local paramData = data[2]
-		if rawParams ~= nil and rawParams[paramId] ~= nil then
-			actualParams[paramId] = paramData.values[rawParams[paramId]]
-		else
-			actualParams[paramId] = paramData.values[paramData.defaultIdx]
-		end
-	end
-	local o = getDataFromParams(actualParams)
+	local o = getDataFromParams(config_util.getActualParams(rawParams, allParams))
 	setmetatable(o, config)
 
 	game.config.phobos2077 = game.config.phobos2077 or {}
