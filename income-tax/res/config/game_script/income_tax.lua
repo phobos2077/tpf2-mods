@@ -14,44 +14,51 @@ portions of the Software.
 
 local journal_util = require 'lib/journal_util'
 local table_util = require 'lib/table_util'
+local taxes = require 'income_tax/taxes'
 
 local persistentData = {}
-local chargeInterval = 365.25
+local financePeriod = 365.25 * 2 -- two timescale-independent "years" are equal to one in-game finance-period
 
 local Type = journal_util.Enum.Type
 local Carrier = journal_util.Enum.Carrier
 local Construction = journal_util.Enum.Construction
 local Maintenance = journal_util.Enum.Maintenance
 
+local mil = 1000000
+local taxBrackets = {{0, 5*mil}, {0.10, 10*mil}, {0.20, 15*mil}, {0.30}}
+
 local function chargeTax(gameTime)
-	local journal = journal_util.getJournalForPeriod(gameTime - chargeInterval, gameTime)
+	local journal = journal_util.getJournalForPeriod(gameTime - financePeriod, gameTime)
 	local taxBase = journal.income._sum + journal.maintenance._sum
-	local taxRate = 0.2
-	local taxAmount = taxBase * taxRate
-	if taxAmount > 0 then
-		journal_util.bookEntry(-taxAmount, Type.OTHER, Carrier.OTHER, Construction.OTHER, Maintenance.OTHER)
+	local tax = taxes.calculateProgressiveTax(taxBase, taxBrackets)
+	if tax.total > 0 then
+		journal_util.bookEntry(-tax.total, Type.OTHER, Carrier.OTHER, Construction.OTHER, Maintenance.OTHER)
 	end
-	print(string.format("Tax = Tax Base * Rate = $%d * %df = $%d", taxBase, taxRate * 100, taxAmount))
+	
+	local bracketsStr = table_util.listToString(tax.brackets, ";", "$%d")
+	print(string.format("Tax Total = $%d, Base = $%d, Average Rate = %.1f%%, Brackets = (%s)", tax.total, tax.base, tax.averageRate * 100, bracketsStr))
 end
+
+local nextTaxTime
 
 function data()
 	return {
 		save = function()
-			return persistentData
+			-- return persistentData
 		end,
 		load = function(loadedState)
-			persistentData = loadedState or {}
+			-- persistentData = loadedState or {}
 		end,
 		update = function()
 			local currentTime = game.interface.getGameTime().time
-			-- Mod started for the first time.
-			if persistentData.nextTaxTime == nil then
-				-- Make sure extra maintenance charge is always calculated at fixed year intervals from game start.
-				persistentData.nextTaxTime = math.ceil(currentTime / chargeInterval) * chargeInterval
+			-- First update after game loaded.
+			if nextTaxTime == nil then
+				-- Make sure extra maintenance charge is always calculated at the end of current finance period.
+				nextTaxTime = math.ceil(currentTime / financePeriod) * financePeriod
 			end
-			if currentTime > persistentData.nextTaxTime then
+			if currentTime > nextTaxTime then
 				chargeTax(currentTime)
-				persistentData.nextTaxTime = persistentData.nextTaxTime + chargeInterval
+				nextTaxTime = nextTaxTime + financePeriod
 			end
 		end,
 		guiHandleEvent = function(id, name, param)

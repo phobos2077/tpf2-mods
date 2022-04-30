@@ -12,8 +12,6 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
-
-
 function data()
 	return {
 		info = {
@@ -36,9 +34,7 @@ function data()
 		runFn = function (settings, modParams)
 			-- configData = config.createFromParams(modParams[getCurrentModId()])
 
-			-- debugPrint({"runFn", modParams, getCurrentModId(), configData})
-
-			
+			-- debugPrint({"runFn", modParams})
 		end,
 		postRunFn = function(settings, params)
 		end
