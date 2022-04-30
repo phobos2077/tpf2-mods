@@ -64,9 +64,6 @@ local function getCostByType(typeId, cached, repName)
     if cached[typeId] == nil then
         local data = api.res[repName].get(typeId)
 		local constructionCost = data and (data.metadata and data.metadata.cost and data.metadata.cost.price or data.cost) or 0
-		if constructionCost ~= 0 then
-			constructionCost = constructionCost
-		end
         cached[typeId] = constructionCost
     end
     return cached[typeId]
@@ -99,7 +96,7 @@ local function getTrackEdgeCost(track, len)
     return costPerMeter * len * mult
 end
 
-local function getHeightAt(pos2d)
+local function getTerrainHeightAt(pos2d)
 	return api.engine.terrain.getHeightAt(pos2d)
 end
 
@@ -107,7 +104,10 @@ local cachedCostFactors = {}
 local function getBridgeCostFactors(bridgeId)
 	if cachedCostFactors[bridgeId] == nil then
 		local data = api.res.bridgeTypeRep.get(bridgeId)
-		cachedCostFactors[bridgeId] = data and data.costFactors or false
+		cachedCostFactors[bridgeId] = data and data.costFactors and data.costFactors[1] > 0 and data.costFactors[2] > 0 and {data.costFactors[1], data.costFactors[2]} or false
+		if cachedCostFactors[bridgeId] == false then
+			print("Bad cost factors for bridge ID = " .. bridgeId)
+		end
 	end
 	return cachedCostFactors[bridgeId]
 end
@@ -115,19 +115,24 @@ end
 local function getBridgeEdgeCost(edge, geometry)
     local costPerMeter = getCostByType(edge.typeIndex, cachedCosts.bridge, "bridgeTypeRep")
 	local bridgeCostFactors = getBridgeCostFactors(edge.typeIndex)
-	if bridgeCostFactors then
-		local startPos = geometry.params.pos[1]
-		local endPos = geometry.params.pos[2]
-		local height1 = geometry.height.x - getHeightAt(startPos)
-		local height2 = geometry.height.y - getHeightAt(endPos)
-		local averageHeight = (height1 + height2) / 2
+	if costPerMeter > 0 then
+		local mult = 1
+		if bridgeCostFactors then
+			local startPos = geometry.params.pos[1]
+			local endPos = geometry.params.pos[2]
+			local height1 = geometry.height.x - getTerrainHeightAt(startPos)
+			local height2 = geometry.height.y - getTerrainHeightAt(endPos)
+			local averageHeight = (height1 + height2) / 2
+			if averageHeight > 0 then
+				-- This formula was deduced to approximate real costs. Actual formula may be different.
+				mult = math.max((averageHeight / bridgeCostFactors[1]) ^ bridgeCostFactors[2], 1)
+			end
 
-		-- This formula was deduced to approximate real costs. Actual formula may be different.
-		local mult = (averageHeight / bridgeCostFactors[1]) ^ bridgeCostFactors[2]
-	--[[  	debugPrint("Calculating bridge section. cost=" .. costPerMeter ..
+			--[[debugPrint("Calculating bridge section. cost=" .. costPerMeter ..
 			", mult=(".. averageHeight .. "/" .. bridgeCostFactors[1] .. ") ^ " .. bridgeCostFactors[2] ..
 			", length=" .. geometry.length ..
-			", result=" .. (costPerMeter * geometry.length * mult)) ]]
+			", result=" .. (costPerMeter * geometry.length * mult))]]
+		end
 		return costPerMeter * geometry.length * mult
 	else
 		return 0

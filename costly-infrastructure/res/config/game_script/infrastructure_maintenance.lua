@@ -92,9 +92,10 @@ local function chargeExtraMaintenance()
 	local charged = statData.chargedByCategory
 	local total = table_util.sum(charged)
 	local mults = table_util.map(inflationMults, function(infl, cat) return infl * configData.costMultipliers[cat] end)
+	
+	--debugPrint({msg = "Charged Extra Maintenance", stats = statData, inflation = inflationMults, mults = configData.costMultipliers})
 	print(string.format("Charged extra maintenance costs. Rail: $%d, Road: $%d, Water: $%d, Air: $%d. TOTAL = $%d", charged.rail, charged.street, charged.water, charged.air, total)..
 		string.format("\nCurrent multipliers: Rail: %.2f, Road: %.2f, Water: %.2f, Air: %.2f", mults.rail, mults.street, mults.water, mults.air))
-	--debugPrint({msg = "Charged Extra Maintenance", stats = statData, inflation = inflationMults, mults = configData.costMultipliers})
 end
 
 function data()
