@@ -12,6 +12,8 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
+local config = require "income_tax/config"
+
 function data()
 	return {
 		info = {
@@ -29,12 +31,12 @@ function data()
 					steamProfile = "76561198025571704",
 				},
 			},
-			params = {}
+			params = config.getModParams()
 		},
 		runFn = function (settings, modParams)
-			-- configData = config.createFromParams(modParams[getCurrentModId()])
+			configData = config.createFromParams(modParams[getCurrentModId()])
 
-			-- debugPrint({"runFn", modParams})
+			debugPrint({"runFn", configData})
 		end,
 		postRunFn = function(settings, params)
 		end

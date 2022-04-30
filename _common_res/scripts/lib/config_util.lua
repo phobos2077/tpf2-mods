@@ -18,54 +18,124 @@ local table_util = require "lib/table_util"
 
 local config_util = {}
 
----Creates ParamTypeData
----@param valuesAndLabels any
----@param defaultIdx any
----@param uiType any
+
+config_util.fmt = {
+    percent = function(v)
+        return math.floor(v * 100) .. "%"
+    end,
+    timesX = function(v)
+        return v .. "x"
+    end,
+    money = function(v)
+        local k = 1000
+        local str = ""
+        v = math.floor(v)
+        while v >= k do
+            str = string.format(",%03d", v % k) .. str
+            v = math.floor(v / k)
+        end
+        return "$"..v..str
+    end,
+    moneyShort = function(v)
+        local k = 1000
+        local mil = k*k
+        local bil = mil*k
+        local postfix = ""
+        if v >= 10*bil then
+            v = v/bil
+            postfix = "b"
+        elseif v >= 10*mil then
+            v = v/mil
+            postfix = "m"
+        elseif v >= 10*k then
+            v = v/k
+            postfix = "k"
+        end
+        return string.format("$%.0f%s", v, postfix)
+    end,
+}
+
+---Creates ParamTypeData.
+---@param values table List of values or table-pairs of {value, label}.
+---@param defaultIdx number? 1-based index of default value.
+---@param labelFunc function? Label creation function, used for values without labels provided.
+---@param uiType string?
 ---@return ParamTypeData
-function config_util.makeParamTypeData(valuesAndLabels, defaultIdx, uiType)
+function config_util.paramType(values, defaultIdx, labelFunc, uiType)
 	local idxToVal = {}
     local labels = {}
-    for i, pair in ipairs(valuesAndLabels) do
-        local value, label = table.unpack(pair)
+    labelFunc = labelFunc or tostring
+    for i, value in ipairs(values) do
+        if type(value) == "table" then
+            value, labels[i] = table.unpack(value)
+        end
+        if not labels[i] then
+            labels[i] = labelFunc(value)
+        end
 		idxToVal[i - 1] = value
-        labels[i] = label or tostring(value)
 	end
 	--- @class ParamTypeData
 	local data = {
-        uiType = uiType,
+        uiType = uiType or "SLIDER",
         --- Maps indexes to actual values
         values = idxToVal,
         --- Value labels to use in mod.lua params
         labels = labels,
         --- Index of default value for mod.lua params
-        defaultIdx = defaultIdx - 1
+        defaultIdx = defaultIdx and (defaultIdx - 1) or 0
     }
     return data
 end
 
----Generate values and value labels for mod parameter based on linear progression.
+---Generate values and value labels for mod parameter based on linear progression: val = min + i*step
 ---@param min number Minimum value.
 ---@param max number Maximum value (inclusive).
 ---@param step number Step between values.
 ---@param defaultVal number? Default value (must be divisible to step value).
 ---@param labelFunc function? Label generating function.
+---@param uiType string? Param UI control type.
 ---@return ParamTypeData
-function config_util.makeParamTypeDataForSlider(min, max, step, defaultVal, labelFunc)
+function config_util.genParamTypeLinear(min, max, step, defaultVal, labelFunc, uiType)
 	local values = {}
 	local defaultIdx = 1
 	defaultVal = defaultVal or min
-	labelFunc = labelFunc or function(v) return ""..v end
 
     local i = 1
 	for v = min, max, step do
-        values[i] = {v, labelFunc(v)}
+        values[i] = v
 		if v == defaultVal then
 			defaultIdx = i
 		end
 		i = i + 1
 	end
-	return config_util.makeParamTypeData(values, defaultIdx, "SLIDER")
+	return config_util.paramType(values, defaultIdx, labelFunc, uiType)
+end
+
+---Generate values and value labels for mod parameter based on exponential progression:  val = min*(base^i).
+---@param min number Minimum value.
+---@param max number Maximum value (must follow progression).
+---@param base number?  Base of exponent.
+---@param defaultVal number? Default value (must follow progression).
+---@param labelFunc function? Label generating function.
+---@param uiType string? Param UI control type.
+---@return ParamTypeData
+function config_util.genParamTypeExp(min, max, base, defaultVal, labelFunc, uiType)
+	local values = {}
+	local defaultIdx = 1
+    base = base or 2
+	defaultVal = defaultVal or min
+
+    local i = 0
+    local v = min
+	while v < max do
+        values[i] = v
+		if v == defaultVal then
+			defaultIdx = i
+		end
+        v = min * (base ^ i)
+		i = i + 1
+	end
+	return config_util.paramType(values, defaultIdx, labelFunc, uiType)
 end
 
 ---Converts raw params into actual params.

@@ -104,24 +104,14 @@ function InflationParams:getPerCategory(year)
 	end)
 end
 
-
-
-
-local function valueAsPercent(v)
-	return math.floor(v * 100) .. "%"
-end
-
-local function valueAsX(v)
-	return v .. "x"
-end
-
-local makeSliderData = config_util.makeParamTypeDataForSlider
+local makeSliderData = config_util.genParamTypeLinear
+local fmt = config_util.fmt
 
 local paramTypes = {
-	cost = function(default) return makeSliderData(0.25, 8, 0.25, default or 1, valueAsPercent) end,
-	upgrade = function(default) return makeSliderData(0.5, 4, 0.5, default or 3, valueAsX) end,
-	terrain = function(default) return makeSliderData(0.5, 8, 0.5, default or 1, valueAsX) end,
-	inflation = function(default) return makeSliderData(1, 30, 1, default or 10, valueAsX) end,
+	cost = function(default) return makeSliderData(0.25, 8, 0.25, default or 1, fmt.percent) end,
+	upgrade = function(default) return makeSliderData(0.5, 4, 0.5, default or 3, fmt.timesX) end,
+	terrain = function(default) return makeSliderData(0.5, 8, 0.5, default or 1, fmt.timesX) end,
+	inflation = function(default) return makeSliderData(1, 30, 1, default or 10, fmt.timesX) end,
 	year = function (min, max, default)	return makeSliderData(min, max, 10, default) end,
 }
 

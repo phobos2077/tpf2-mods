@@ -15,6 +15,7 @@ portions of the Software.
 local journal_util = require 'lib/journal_util'
 local table_util = require 'lib/table_util'
 local taxes = require 'income_tax/taxes'
+local config = require 'income_tax/config'
 
 local persistentData = {}
 local financePeriod = 365.25 * 2 -- two timescale-independent "years" are equal to one in-game finance-period
@@ -24,13 +25,12 @@ local Carrier = journal_util.Enum.Carrier
 local Construction = journal_util.Enum.Construction
 local Maintenance = journal_util.Enum.Maintenance
 
-local mil = 1000000
-local taxBrackets = {{0, 5*mil}, {0.10, 10*mil}, {0.20, 15*mil}, {0.30}}
 
 local function chargeTax(gameTime)
+	local configData = config.get()
 	local journal = journal_util.getJournalForPeriod(gameTime - financePeriod, gameTime)
 	local taxBase = journal.income._sum + journal.maintenance._sum
-	local tax = taxes.calculateProgressiveTax(taxBase, taxBrackets)
+	local tax = taxes.calculateProgressiveTax(taxBase, configData.taxBrackets)
 	if tax.total > 0 then
 		journal_util.bookEntry(-tax.total, Type.OTHER, Carrier.OTHER, Construction.OTHER, Maintenance.OTHER)
 	end

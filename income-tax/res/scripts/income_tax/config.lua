@@ -13,180 +13,51 @@ portions of the Software.
 --]]
 
 local table_util = require "lib/table_util"
-local entity_info = require "costly_infrastructure/entity_info"
-
-local Category = entity_info.Category
+local config_util= require "lib/config_util"
 
 ---@class ConfigClass
 local config = {}
 
--- CONSTANTS
-
--- Vanilla multiplier of maintenance costs based on construction costs.
-config.vanillaMaintenanceCostMult = 1/120
 
 
-local function getInflationFlatnessByMaxInflation(startYear, endYear, maxInflation)
-	-- Don't allow negative inflation and prevent division by zero.
-	if maxInflation <= 1 then
-		return 9999999
-	else
-		return (startYear - endYear) / (1 - math.sqrt(maxInflation))
-	end
-end
-
---- Calculates inflation based on year and flatness parameter.
----@param year number
----@param startYear number
----@param flatness number More flatness => less inflation at later years.
----@return number
-local function getInflationByYearAndFlatness(year, startYear, flatness)
-	-- http://fooplot.com/#W3sidHlwZSI6MCwiZXEiOiIoKHgtMTg1MCs4MCkvODApXjIiLCJjb2xvciI6IiMwMDAwMDAifSx7InR5cGUiOjEwMDAsIndpbmRvdyI6WyIxODUwIiwiMjA1MCIsIjAiLCIyMCJdfV0-
-	-- ((x-1850+50)/50)^2
-	local base = (year - startYear + flatness)/flatness
-	if base < 1 then
-		base = 1
-	end
-	return base * base
-end
-
----@class InflationParams
-local InflationParams = {}
-InflationParams.__index = InflationParams
-
----@return InflationParams
----@param startYear number Year when inflation starts.
----@param endYear number Year of maximum inflation.
----@param maxInflationByCategory table Maximum inflation at endYear (on top of cost multiplier) - per each category.
-function InflationParams:new(startYear, endYear, maxInflationByCategory)
-	---@class InflationParams
-	local o = {
-		startYear = startYear,
-		endYear = endYear,
-		flatnessByCategory = table_util.map(maxInflationByCategory, function(maxInflation)
-			return getInflationFlatnessByMaxInflation(startYear, endYear, maxInflation)
-		end),
-	}
-	setmetatable(o, self)
-	return o
-end
-
----@param year number?
----@return number
-function InflationParams:processYear(year)
-	year = year or game.interface and game.interface.getGameTime().date.year or self.startYear
-	-- Cap year to min/max range.
-	if year < self.startYear then
-		year = self.startYear
-	elseif year > self.endYear then
-		year = self.endYear
-	end
-	return year
-end
-
---- Inflation multiplier based on year.
----@param category string
----@param year number?
----@return number
-function InflationParams:get(category, year)
-	year = self:processYear(year)
-	return getInflationByYearAndFlatness(year, self.startYear, self.flatnessByCategory[category])
-end
-
---- Inflation multiplier based on year, for all categories.
----@param year number?
----@return table
-function InflationParams:getPerCategory(year)
-	year = self:processYear(year)
-	return table_util.map(self.flatnessByCategory, function(flatness)
-		return getInflationByYearAndFlatness(year, self.startYear, flatness)
-	end)
-end
-
-
-local function makeParamTypeData(min, max, step, defaultVal, labelFunc)
-	local labels = {}
-	local idxToVal = {}
-	local i = 0
-	local defaultIdx = 0
-	defaultVal = defaultVal or min
-	labelFunc = labelFunc or function(v) return ""..v end
-	for v = min, max, step do
-		idxToVal[i] = v
-		labels[i + 1] = labelFunc(v, i)
-		if v == defaultVal then
-			defaultIdx = i
-		end
-		i = i + 1
-	end
-	--- @class ParamTypeData
-	local data = {values = idxToVal, labels = labels, defaultIdx = defaultIdx}
-	return data
-end
-
-local function valueAsPercent(v)
-	return math.floor(v * 100) .. "%"
-end
-
-local function valueAsX(v)
-	return v .. "x"
-end
+local fmt = config_util.fmt
 
 local paramTypes = {
-	cost = function(default) return makeParamTypeData(0.25, 8, 0.25, default or 1, valueAsPercent) end,
-	upgrade = function(default) return makeParamTypeData(0.5, 4, 0.5, default or 3, valueAsX) end,
-	terrain = function(default) return makeParamTypeData(0.5, 8, 0.5, default or 1, valueAsX) end,
-	inflation = function(default) return makeParamTypeData(1, 30, 1, default or 10, valueAsX) end,
+	--bracketRateStep = function(default) return genParamTypeLinear(0.05, 0.20, 0.25, default or 1, fmt.percent) end,
+}
+local k = 1000
+local mil = 1000*1000
+local allParams = {
+	{"bracket_rate_step", config_util.paramType({0.05, 0.10, 0.20}, 2, fmt.percent, "BUTTON")},
+	{"bracket_rate_min", config_util.genParamTypeLinear(0.00, 0.20, 0.05, 0.00, fmt.percent)},
+	{"bracket_rate_max", config_util.genParamTypeLinear(0.40, 0.95, 0.05, 0.60, fmt.percent)},
+	{"bracket_top_max", config_util.genParamTypeExp(10*mil, 160*mil, 2, 40*mil, fmt.moneyShort)},
 }
 
-local allParams = {
-	{"mult_street", paramTypes.cost(1.5)},
-	{"mult_rail", paramTypes.cost(2)},
-	{"mult_water", paramTypes.cost(1.5)},
-	{"mult_air", paramTypes.cost(0.5)},
-	{"mult_bridges_tunnels", paramTypes.terrain(3)},
-	{"mult_terrain", paramTypes.terrain(1)},
-	{"mult_upgrade_track", paramTypes.upgrade()},
-	{"mult_upgrade_street", paramTypes.upgrade()},
-	{"inflation_year_start", makeParamTypeData(1850, 1950, 10, 1880)},
-	{"inflation_year_end", makeParamTypeData(2000, 2100, 10, 2000)},
-	--{"inflation_exponent", makeParamTypeData(1,2)}
-	{"inflation_street", paramTypes.inflation(10)},
-	{"inflation_rail", paramTypes.inflation(15)},
-	{"inflation_water", paramTypes.inflation(10)},
-	{"inflation_air", paramTypes.inflation(10)},
-}
+local function generateTaxBrackets(params)
+	local brackets = {}
+	local numBrackets = math.floor((params.bracket_rate_max - params.bracket_rate_min) / params.bracket_rate_step) + 1
+	local bracketSize = params.bracket_top_max / (numBrackets - 1)
+	for i = 1, numBrackets do
+		local bracketRate = params.bracket_rate_min + params.bracket_rate_step*(i-1)
+		local bracketTop = i < numBrackets and bracketSize * i or nil
+		brackets[i] = {bracketRate, bracketTop}
+	end
+	return brackets
+end
 
 local function getDataFromParams(params)
 	-- debugPrint({"getDataFromParams", params})
 	---@class ConfigObject : ConfigClass
 	local o = {}
-	--- These are applied to loaded resources via modifiers
-	o.costMultipliers = {
-		[Category.STREET] = params.mult_street,
-		[Category.RAIL] = params.mult_rail,
-		[Category.WATER] = params.mult_water,
-		[Category.AIR] = params.mult_air,
-		terrain = params.mult_terrain,
-		tunnel = params.mult_bridges_tunnels,
-		bridge = params.mult_bridges_tunnels,
-		trackUpgrades = params.mult_upgrade_track,
-		streetUpgrades = params.mult_upgrade_street
-	}
-	--- These are used for both maintenance (all types) and build costs (stations and depos only).
-	o.inflation = InflationParams:new(params.inflation_year_start, params.inflation_year_end, {
-		[Category.STREET] = params.inflation_street,
-		[Category.RAIL] = params.inflation_rail,
-		[Category.WATER] = params.inflation_water,
-		[Category.AIR] = params.inflation_air,
-	})
+	o.taxBrackets = generateTaxBrackets(params)
 	return o
 end
 
 --- Gets mod config object.
 ---@return ConfigObject
 function config.get()
-	return game.config.phobos2077.costlyInfrastructure
+	return game.config.phobos2077.incomeTax
 end
 
 config.__index = config
@@ -197,23 +68,16 @@ config.allParams = allParams
 ---@param rawParams table Mod parameters as indexes to actual values in values table.
 ---@return ConfigObject Config instance.
 function config.createFromParams(rawParams)
-	-- debugPrint({"createFromParams", rawParams})
-	local actualParams = {}
-	for _, data in pairs(allParams) do
-		local paramId = data[1]
-		local paramData = data[2]
-		if rawParams ~= nil and rawParams[paramId] ~= nil then
-			actualParams[paramId] = paramData.values[rawParams[paramId]]
-		else
-			actualParams[paramId] = paramData.values[paramData.defaultIdx]
-		end
-	end
-	local o = getDataFromParams(actualParams)
+	local o = getDataFromParams(config_util.getActualParams(rawParams, allParams))
 	setmetatable(o, config)
 
 	game.config.phobos2077 = game.config.phobos2077 or {}
-	game.config.phobos2077.costlyInfrastructure = o
+	game.config.phobos2077.incomeTax = o
 	return o
+end
+
+function config.getModParams()
+	return config_util.makeModParams(allParams)
 end
 
 ---@type ConfigClass
