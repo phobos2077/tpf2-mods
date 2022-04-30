@@ -41,6 +41,11 @@ journal_util.Enum = {
 		DEPOT = 4,
 		BULLDOZER = 5,
 		OTHER = 6,
+	},
+	Maintenance = {
+		VEHICLE = 0,
+		INFRASTRUCTURE = 1,
+		OTHER = 2,
 	}
 }
 
@@ -58,6 +63,37 @@ function journal_util.bookEntry(amount, entryType, carrierType, constructionType
 	je.time = -1
 
 	api.cmd.sendCommand(api.cmd.make.bookJournalEntry(api.engine.util.getPlayer(), je))
+end
+
+--[[ Example of short journal:
+{
+  _sum = 65884212,
+  acquisition = {
+    _sum = -10382242,
+  },
+  construction = {
+    _sum = -7339,
+  },
+  income = {
+    _sum = 207822279,
+  },
+  interest = 0,
+  loan = 0,
+  maintenance = {
+    _sum = -131548486,
+  },
+  other = 0,
+}
+]]
+
+
+---Gets journal for period of last N days.
+---@param startTime number
+---@param endTime number
+---@param short? boolean Short version of journal?
+---@return table
+function journal_util.getJournalForPeriod(startTime, endTime, short)
+	return game.interface.getPlayerJournal(1000.0 * startTime, 1000.0 * endTime, short and true or false)
 end
 
 return journal_util
