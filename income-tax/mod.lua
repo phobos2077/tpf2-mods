@@ -34,9 +34,9 @@ function data()
 			params = config.getModParams()
 		},
 		runFn = function (settings, modParams)
-			configData = config.createFromParams(modParams[getCurrentModId()])
+			config.createFromParams(modParams[getCurrentModId()])
 
-			debugPrint({"runFn", configData})
+			--debugPrint({"runFn", configData})
 		end,
 		postRunFn = function(settings, params)
 		end

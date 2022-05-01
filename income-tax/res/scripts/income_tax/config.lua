@@ -35,8 +35,8 @@ local allParams = {
 
 	{"rate_min", config_util.genParamTypeLinear(0.00, 0.20, 0.05, 0.00, fmt.percent)},
 	{"rate_max", config_util.genParamTypeLinear(0.50, 1.00, 0.05, 0.95, fmt.percent)},
-	{"half_rate_base", config_util.genParamTypeExp(1*mil, 64*mil, 2, 8*mil, fmt.moneyShort)},
-	{"taxable_min_factor", config_util.genParamTypeLinear(0, 0.10, 0.02, 0.10, fmt.percent)},
+	{"half_rate_base", config_util.genParamTypeLinear(5*mil, 100*mil, 5*mil, 30*mil, fmt.moneyShort)},
+	{"taxable_min_factor", config_util.genParamTypeLinear(0, 0.30, 0.05, 0.10, fmt.percent)},
 }
 
 --[[local function generateTaxBrackets(params)

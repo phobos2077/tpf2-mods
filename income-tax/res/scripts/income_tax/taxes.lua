@@ -14,12 +14,17 @@ portions of the Software.
 
 local taxes = {}
 
+
+--- Brackets example:
+-- {{0, 5*mil}, {0.10, 10*mil}, {0.20, 15*mil}, {0.30}}
+
+
 --- Calculate progressive tax based on tax base and brackets.
 ---@param taxBase number
 ---@param taxBrackets table
----@return ProgressiveArctanTaxResult
+---@return ProgressiveBracketTaxResult
 function taxes.calculateProgressiveTaxBrackets(taxBase, taxBrackets)
-    ---@class ProgressiveArctanTaxResult
+    ---@class ProgressiveBracketTaxResult
 	local tax = {total = 0, base = taxBase, brackets = {}}
 	local lastTop = 0
 	for i, bracket in ipairs(taxBrackets) do

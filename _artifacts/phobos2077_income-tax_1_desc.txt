@@ -1,0 +1,10 @@
+Adds tax on your Operating Income (income minus investments) with dynamic Tax Rate that changes in a non-linear fashion, approximating real-life progressive tax systems. Tax is deducted at the beginning of every finance period and uses your total income (minus investments) over the last period as a tax base.
+
+This allows you to set up a money sink, that will slow down money generation in late game, without making your early game start harder.
+
+You can configure tax parameters as you like. For example, setting Minimum Tax Rate to 0% and increasing Minimum Taxable Income Factor ensures there is no tax whatsoever in early game until you reach a certain level of income.
+
+See preview image for an example of Tax Rate vs Net Income. Red circle shows the position of Half Rate Income on the Tax Rate curve.
+
+If you want to dig deep into tax rate calculation, see this spreadsheet:
+https://docs.google.com/spreadsheets/d/1xuZJHvulZx9a5tLuafPP34bQjnhrRqkplY_m5_dkbTk/edit?usp=sharing

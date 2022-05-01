@@ -1,1 +1,1 @@
-"Constly Infrastructure" mod for Transport Fever 2
+Script mods for Transport Fever 2.

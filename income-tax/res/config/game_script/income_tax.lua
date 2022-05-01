@@ -31,13 +31,15 @@ local function chargeTax(gameTime)
 	local journal = journal_util.getJournalForPeriod(gameTime - financePeriod, gameTime)
 	local taxBase = journal.income._sum + journal.maintenance._sum
 	--local tax = taxes.calculateProgressiveTaxBrackets(taxBase, configData.taxBrackets)
-	tax = taxes.calculateProgressiveTaxArcTan(taxBase, taxParams.rateMin, taxParams.rateMax, taxParams.halfRateBase, taxParams.taxableMin)
+	local tax = taxes.calculateProgressiveTaxArcTan(taxBase, taxParams.rateMin, taxParams.rateMax, taxParams.halfRateBase, taxParams.taxableMin)
 	if tax.total > 0 then
 		journal_util.bookEntry(-tax.total, Type.OTHER, Carrier.OTHER, Construction.OTHER, Maintenance.OTHER)
 	end
-	debugPrint(tax)
+	--debugPrint(tax)
 	--local bracketsStr = table_util.listToString(tax.brackets, ";", "$%d")
 	--print(string.format("Tax Total = $%d, Base = $%d, Average Rate = %.1f%%, Brackets = (%s)", tax.total, tax.base, tax.averageRate * 100, bracketsStr))
+
+	print(string.format("Progressive Income Tax. Total = $%d, Base = $%d, Rate = %.1f%%", tax.total, tax.base, tax.rate * 100))
 end
 
 local nextTaxTime

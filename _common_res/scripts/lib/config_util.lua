@@ -129,7 +129,7 @@ function config_util.genParamTypeExp(min, max, base, defaultVal, labelFunc, uiTy
     local v = min
 	while v <= max do
         values[i] = v
-		if defaultIdx ~= nil and v >= defaultVal then
+		if defaultIdx == nil and v >= defaultVal then
 			defaultIdx = i
 		end
         v = min * (base ^ i)
