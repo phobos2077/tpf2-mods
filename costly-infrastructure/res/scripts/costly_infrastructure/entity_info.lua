@@ -201,6 +201,8 @@ function entity_info.getTotalEdgeCostsByCategory()
     local result = {
 		[Category.STREET] = 0,
 		[Category.RAIL] = 0,
+		bridge = 0, -- included in street&rail totals
+		tunnel = 0,
 		len = {
 			[Category.STREET] = 0,
 			[Category.RAIL] = 0,
@@ -236,10 +238,12 @@ function entity_info.getTotalEdgeCostsByCategory()
 				if edge.type == 1 then
 					local bridgeCost = table_util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
 					totalEdgeCost = totalEdgeCost + bridgeCost
+					table_util.incInTable(result, "bridge", bridgeCost)
 					table_util.incInTable(result.len, "bridge", lengthByTN)
 				elseif edge.type == 2 then
 					local tunnelCost = getTunnelEdgeCost(edge, lengthByTN)
 					totalEdgeCost = totalEdgeCost + tunnelCost
+					table_util.incInTable(result, "tunnel", tunnelCost)
 					table_util.incInTable(result.len, "tunnel", lengthByTN)
 				end
 				table_util.incInTable(result, category, totalEdgeCost)

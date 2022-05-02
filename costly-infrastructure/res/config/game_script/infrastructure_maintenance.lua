@@ -39,8 +39,10 @@ local function chargeForMaintenance(chargeAmount, carrierType, constructionType)
 	chargeAmount = math.floor(chargeAmount)
 	if math.abs(chargeAmount) >= 1 then
 		journal_util.bookEntry(-chargeAmount, journal_util.Enum.Type.MAINTENANCE, carrierType, constructionType, 1)
+		return chargeAmount
+	else
+		return 0
 	end
-	return chargeAmount
 end
 
 --- Charge extra maintenance for all edges (roads and tracks).
@@ -62,11 +64,11 @@ end
 
 --- Charge extra maintenance for all constructions (stations, depos).
 ---@param costMultipliers table
----@param inflationPerCategory table
+---@param inflationByCategory table
 ---@param statData table
-local function chargeExtraConstructionMaintenance(costMultipliers, inflationPerCategory, statData)
+local function chargeExtraConstructionMaintenance(costMultipliers, inflationByCategory, statData)
 	local maintenanceByType
-	for cat, inflation in pairs(inflationPerCategory) do
+	for cat, inflation in pairs(inflationByCategory) do
 		local finalMult = costMultipliers[cat] * inflation - 1
 		if finalMult > 0 then
 			maintenanceByType = maintenanceByType or entity_info.getTotalConstructionMaintenanceByCategory()

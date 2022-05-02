@@ -1,4 +1,5 @@
 local entity_info = require 'costly_infrastructure/entity_info'
+local vehicle_stats = require 'costly_infrastructure/vehicle_stats'
 
 local debug = {}
 
@@ -31,6 +32,12 @@ end
 function debug.printTotalConstructionMaintenance()
 	debugPrint("Printing construction maintenance costs by type")
 	debugPrint(entity_info.getTotalConstructionMaintenanceByCategory())
+end
+
+-- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printVehicleStats"))
+function debug.printVehicleStats()
+	debugPrint("Printing Vehicle stats CSV")
+	debugPrint(vehicle_stats.printVehicleStats())
 end
 
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printGameInterface"))

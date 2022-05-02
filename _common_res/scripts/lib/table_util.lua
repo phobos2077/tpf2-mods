@@ -118,6 +118,19 @@ function table_util.sum(t, selectorFunc)
     end, 0)
 end
 
+--- Returns max value from table.
+---@param t table
+---@param selectorFunc function? If nil, table values will be compared.
+function table_util.max(t, selectorFunc)
+    if selectorFunc == nil then
+        selectorFunc = function (v) return v end
+    end
+    return table_util.reduce(t, function(cur, value, key)
+        local cmpValue = selectorFunc(value, key)
+        return (cur == nil or cmpValue > cur) and cmpValue or cur
+    end, nil)
+end
+
 ---Concats list table to string
 ---@param t table
 ---@param separator string?
