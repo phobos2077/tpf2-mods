@@ -33,8 +33,8 @@ local allParams = {
 	{"bracket_rate_max", config_util.genParamTypeLinear(0.40, 0.95, 0.05, 0.60, fmt.percent)},
 	{"bracket_top_max", config_util.genParamTypeExp(10*mil, 160*mil, 2, 40*mil, fmt.moneyShort)},]]
 
-	{"rate_min", config_util.genParamTypeLinear(0.00, 0.20, 0.05, 0.00, fmt.percent)},
-	{"rate_max", config_util.genParamTypeLinear(0.50, 1.00, 0.05, 0.95, fmt.percent)},
+	{"rate_min", config_util.genParamTypeLinear(0.00, 0.50, 0.05, 0.00, fmt.percent)},
+	{"rate_max", config_util.genParamTypeLinear(0.05, 1.00, 0.05, 0.80, fmt.percent)},
 	{"half_rate_base", config_util.genParamTypeLinear(5*mil, 100*mil, 5*mil, 30*mil, fmt.moneyShort)},
 	{"taxable_min_factor", config_util.genParamTypeLinear(0, 0.30, 0.05, 0.10, fmt.percent)},
 }
@@ -58,7 +58,7 @@ local function getDataFromParams(params)
 	local o = {}
 	-- o.taxBrackets = generateTaxBrackets(params)
 	o.taxRateParams = {
-		rateMin = params.rate_min,
+		rateMin = math.min(params.rate_min, params.rate_max),
 		rateMax = params.rate_max,
 		halfRateBase = params.half_rate_base,
 		taxableMin = params.half_rate_base * params.taxable_min_factor

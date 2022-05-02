@@ -21,7 +21,7 @@ local config_util = {}
 
 config_util.fmt = {
     percent = function(v)
-        return math.floor(v * 100) .. "%"
+        return string.format("%.0f%%", v * 100)
     end,
     timesX = function(v)
         return v .. "x"
