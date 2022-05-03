@@ -13,8 +13,10 @@ portions of the Software.
 --]]
 
 local table_util = require 'lib/table_util'
-local Category = (require 'costly_infrastructure/entity_info').Category
+local math_ex = require 'lib/math_ex'
 local game_enum = require 'lib/game_enum'
+local Category = (require 'costly_infrastructure/entity_info').Category
+
 local vehicle_stats = {}
 
 local Carrier = game_enum.Carrier
@@ -55,7 +57,7 @@ local function getAllAvailableVehiclesByCategory(year)
 	local allVehicles = getAllTransportVehicles()
 	local result = table_util.mapDict(Category, function(cat) return cat, {} end)
 	for _, metadata in pairs(allVehicles) do
-		if isAvailable(year, metadata.availability) then
+		if isAvailable(year, metadata.availability) and not metadata.transportVehicle.multipleUnitOnly then
 			local cat = carrierToCategory[metadata.transportVehicle.carrier]
 			table.insert(result[cat], metadata)
 		end
@@ -98,54 +100,44 @@ local function getTopSpeed(metadata)
 	return typeSpecific and typeSpecific.topSpeed or nil
 end
 
---- Vehicle score that will affect construction multipliers.
+--- Vehicle score is similar to game automatic price calculation, but simpler and used to calculate vehicle-based cost multipliers.
 local function calculateVehicleScore(metadata)
 	local capacity = getCapacity(metadata.transportVehicle)
+	local topSpeed = getTopSpeed(metadata)
 
-	if metadata.roadVehicle ~= nil then
-		local topSpeed = metadata.roadVehicle.topSpeed
-		return capacity * math.sqrt(topSpeed) / 10 -- 1 is approx. 1870's vehicles
-	elseif metadata.railVehicle ~= nil then
+	if metadata.railVehicle ~= nil then
 		local engines = metadata.railVehicle.engines
 		local power = engines and engines[1] and engines[1].power or 0
-		return math.sqrt(power) / 10
-	elseif metadata.waterVehicle ~= nil then
-		local topSpeed = metadata.waterVehicle.topSpeed
-		return capacity * math.sqrt(topSpeed)
-	elseif metadata.airVehicle ~= nil then
-		local topSpeed = metadata.airVehicle.topSpeed
-		return capacity * math.sqrt(topSpeed)
+		return power
+	else
+		return capacity * topSpeed
 	end
 end
 
-function vehicle_stats.calculateVehicleMultipliers()
-	local params = {
-		[Category.STREET] = {
-			base = 500000
-		},
-		[Category.RAIL] = {
-			base = 500000
-		},
-		[Category.WATER] = {
-			base = 500000
-		},
-	}
-	local metadataByCategory = getAllAvailableVehiclesByCategory(currentYear())
+function vehicle_stats.calculateVehicleMultipliers(paramsByCat, year)
+	local metadataByCategory = getAllAvailableVehiclesByCategory(year)
 	local result = {}
 	for cat, metadatas in pairs(metadataByCategory) do
-		
+		local params = paramsByCat[cat]
 		local bestVehicle = table_util.max(metadatas, function(metadata) return calculateVehicleScore(metadata) end)
 		local score = calculateVehicleScore(bestVehicle)
-		result[cat] = score / 50000
+
+		-- This formula basically remaps whatever scaling of the vehicle score to the user-defined scaling from 1 up to mult.
+		result[cat] = ((math_ex.clamp(score, params.base, params.max) / params.base) ^ params.exp - 1) /
+					  ((params.max / params.base) ^ params.exp - 1) *
+					  (params.mult - 1) + 1
 	end
+	debugPrint({"Calculated vehicle multipliers", result, paramsByCat, year})
 	return result
 end
 
 function vehicle_stats.printVehicleStats()
 	local allVehicles = getAllTransportVehicles()
-	print("Carrier,YearFrom,YearTo,Capacity,Speed (m/s),Power (kW),Price ($)")
+	local carrierToStr = table_util.mapDict(game_enum.Carrier, function(v, k) return v, k end)
+	print("Carrier,Name,YearFrom,YearTo,Capacity,Speed (m/s),Power (kW),Price ($)")
 	for _, metadata in pairs(allVehicles) do
-		local carrier = metadata.transportVehicle.carrier
+		local name = metadata.description and metadata.description.name or "N/A"
+		local carrier = carrierToStr[metadata.transportVehicle.carrier]
 		local capacity = getCapacity(metadata.transportVehicle)
 		local topSpeed = getTopSpeed(metadata)
 		local power = 0
@@ -156,7 +148,7 @@ function vehicle_stats.printVehicleStats()
 		local yearFrom = metadata.availability and metadata.availability.yearFrom or -1
 		local yearTo = metadata.availability and metadata.availability.yearTo or -1
 		local price = metadata.cost and metadata.cost.price or -1
-		print(string.format("%s,%d,%d,%d,%.2f,%.2f,%d", carrier, yearFrom, yearTo, capacity, topSpeed, power, price))
+		print(string.format("%s,%s,%d,%d,%d,%.2f,%.2f,%d", carrier, name, yearFrom, yearTo, capacity, topSpeed, power, price))
 	end
 end
 

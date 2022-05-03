@@ -16,6 +16,7 @@ local table_util = require "lib/table_util"
 local config_util = require "lib/config_util"
 local entity_info = require "costly_infrastructure/entity_info"
 local inflation = require "costly_infrastructure/inflation"
+local vehicle_stats = require 'costly_infrastructure/vehicle_stats'
 
 local Category = entity_info.Category
 
@@ -75,14 +76,34 @@ local function getDataFromParams(params)
 		trackUpgrades = params.mult_upgrade_track,
 		streetUpgrades = params.mult_upgrade_street
 	}
-	o.constructionCostScaling = {
+	o.vehicleMultParams = {
+		[Category.RAIL] = {
+			base = 70, -- Baldwin's Six-Wheels
+			max = 6500, -- Russian Class VL80S
+			exp = 0.5,
+			mult = 10, -- TODO: user-configurable
+		},
 		[Category.STREET] = {
-			baseMult = 1,
-			maxMult = 10,
-		}
+			base = 20, -- Stagecoach
+			max = 1000, -- Cascadia Tank Truck
+			exp = 0.5,
+			mult = 10, -- TODO: user-configurable
+		},
+		[Category.WATER] = {
+			base = 550, -- Zoroaster
+			max = 3200, -- Cascadia Tank Truck
+			exp = 0.5,
+			mult = 10, -- TODO: user-configurable
+		},
+		[Category.AIR] = {
+			base = 330, -- Vickers Victoria
+			max = 13000, -- Tupolev TU-204
+			exp = 0.5,
+			mult = 10, -- TODO: user-configurable
+		},
 	}
-
-
+	o.vehicleMultipliers = nil -- dynamically generated
+	o.lastVehicleMultYear = nil
 	--- These are used for both maintenance (all types) and build costs (stations and depos only).
 --[[
 	o.inflation = inflation.InflationParams:new(params.inflation_year_start, params.inflation_year_end, {
@@ -115,6 +136,18 @@ function config.createFromParams(rawParams)
 	game.config.phobos2077 = game.config.phobos2077 or {}
 	game.config.phobos2077.costlyInfrastructure = o
 	return o
+end
+
+--- Calculates (if needed) and returns vehicle-based cost multipliers for the given year.
+---@param self ConfigObject
+---@param year number
+---@param category string
+function config:getCurrentVehicleMultiplier(year, category)
+	if self.vehicleMultipliers == nil or self.lastVehicleMultYear == nil or year ~= self.lastVehicleMultYear then
+		self.vehicleMultipliers = vehicle_stats.calculateVehicleMultipliers(self.vehicleMultParams, year)
+		self.lastVehicleMultYear = year
+	end
+	return self.vehicleMultipliers[category]
 end
 
 ---@type ConfigClass
