@@ -76,6 +76,7 @@ local function getDataFromParams(params)
 		trackUpgrades = params.mult_upgrade_track,
 		streetUpgrades = params.mult_upgrade_street
 	}
+	---@class VehicleMultParams
 	o.vehicleMultParams = {
 		[Category.RAIL] = {
 			base = 70, -- Baldwin's Six-Wheels
@@ -102,8 +103,6 @@ local function getDataFromParams(params)
 			mult = 10, -- TODO: user-configurable
 		},
 	}
-	o.vehicleMultipliers = nil -- dynamically generated
-	o.lastVehicleMultYear = nil
 	--- These are used for both maintenance (all types) and build costs (stations and depos only).
 --[[
 	o.inflation = inflation.InflationParams:new(params.inflation_year_start, params.inflation_year_end, {
@@ -136,18 +135,6 @@ function config.createFromParams(rawParams)
 	game.config.phobos2077 = game.config.phobos2077 or {}
 	game.config.phobos2077.costlyInfrastructure = o
 	return o
-end
-
---- Calculates (if needed) and returns vehicle-based cost multipliers for the given year.
----@param self ConfigObject
----@param year number
----@param category string
-function config:getCurrentVehicleMultiplier(year, category)
-	if self.vehicleMultipliers == nil or self.lastVehicleMultYear == nil or year ~= self.lastVehicleMultYear then
-		self.vehicleMultipliers = vehicle_stats.calculateVehicleMultipliers(self.vehicleMultParams, year)
-		self.lastVehicleMultYear = year
-	end
-	return self.vehicleMultipliers[category]
 end
 
 ---@type ConfigClass

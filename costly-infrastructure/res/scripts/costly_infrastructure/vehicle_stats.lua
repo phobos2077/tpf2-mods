@@ -32,13 +32,12 @@ local function currentYear()
 	return game.interface.getGameTime().date.year
 end
 
-local function isAvailable(year, avail)
-	return avail ~= nil and
-		(avail.yearFrom == 0 or year >= avail.yearFrom) and
-		(avail.yearTo == 0 or year <= avail.yearTo)
+local function isAvailable(year, yearFrom, yearTo)
+	return (not yearFrom or yearFrom == 0 or year >= yearFrom) and
+		(not yearTo or yearTo == 0 or year <= yearTo)
 end
 
-local function getAllTransportVehicles()
+local function getAllTransportVehiclesFromRep()
 	local id = 0
 	local modelRes = api.res.modelRep.get(id)
 	local result = {}
@@ -53,26 +52,28 @@ local function getAllTransportVehicles()
 	return result
 end
 
-local function getAllAvailableVehiclesByCategory(year)
-	local allVehicles = getAllTransportVehicles()
-	local result = table_util.mapDict(Category, function(cat) return cat, {} end)
-	for _, metadata in pairs(allVehicles) do
-		if isAvailable(year, metadata.availability) and not metadata.transportVehicle.multipleUnitOnly then
-			local cat = carrierToCategory[metadata.transportVehicle.carrier]
-			table.insert(result[cat], metadata)
-		end
-	end
+local function getBestAvailableVehicleScoreByCategory(year, statsByCat)
+	local result = table_util.map(statsByCat, function(vehicles)
+		return table_util.max(vehicles, function(vehicle)
+			local yearFrom, yearTo, score = table.unpack(vehicle)
+			return isAvailable(year, yearFrom, yearTo) and score or 0
+		end)
+	end)
 	return result
 end
 
 local function getCapacity(transportVehicle)
 	-- Sums capacities from all compartments.
-	return table_util.sum(transportVehicle.compartments, function(comp)
-		-- Finds load config with biggest capacity.
-		return table_util.max(comp.loadConfigs, function(loadCfg)
-			return loadCfg.cargoEntries and loadCfg.cargoEntries[1] and loadCfg.cargoEntries[1].capacity or 0
+	return transportVehicle.compartments ~= nil
+		and table_util.sum(transportVehicle.compartments, function(comp)
+			-- Finds load config with biggest capacity.
+			return comp.loadConfigs ~= nil
+				and	table_util.max(comp.loadConfigs, function(loadCfg)
+					return loadCfg.cargoEntries and loadCfg.cargoEntries[1] and loadCfg.cargoEntries[1].capacity or 0
+				end)
+				or 0
 		end)
-	end)
+		or 0
 end
 
 --- Approximates vanilla vehicle price calculation. Can't use price directly because mods might've changed it.
@@ -97,7 +98,7 @@ end
 
 local function getTopSpeed(metadata)
 	local typeSpecific = metadata.roadVehicle or metadata.railVehicle or metadata.waterVehicle or metadata.airVehicle
-	return typeSpecific and typeSpecific.topSpeed or nil
+	return typeSpecific and typeSpecific.topSpeed or 0
 end
 
 --- Vehicle score is similar to game automatic price calculation, but simpler and used to calculate vehicle-based cost multipliers.
@@ -114,25 +115,48 @@ local function calculateVehicleScore(metadata)
 	end
 end
 
-function vehicle_stats.calculateVehicleMultipliers(paramsByCat, year)
-	local metadataByCategory = getAllAvailableVehiclesByCategory(year)
-	local result = {}
-	for cat, metadatas in pairs(metadataByCategory) do
-		local params = paramsByCat[cat]
-		local bestVehicle = table_util.max(metadatas, function(metadata) return calculateVehicleScore(metadata) end)
-		local score = calculateVehicleScore(bestVehicle)
-
-		-- This formula basically remaps whatever scaling of the vehicle score to the user-defined scaling from 1 up to mult.
-		result[cat] = ((math_ex.clamp(score, params.base, params.max) / params.base) ^ params.exp - 1) /
-					  ((params.max / params.base) ^ params.exp - 1) *
-					  (params.mult - 1) + 1
-	end
+function vehicle_stats.calculateVehicleMultipliers(paramsByCat, statsByCat, year)
+	local bestScoreByCategory = getBestAvailableVehicleScoreByCategory(year, statsByCat)
+	local result = table_util.map(paramsByCat, function(params, cat)
+		local score = bestScoreByCategory[cat]
+		if score ~= nil and score > 0 then
+			-- This formula basically remaps whatever scaling of the vehicle score to the user-defined scaling from 1 up to mult.
+			return ((math_ex.clamp(score, params.base, params.max) / params.base) ^ params.exp - 1) /
+						((params.max / params.base) ^ params.exp - 1) *
+						(params.mult - 1) + 1
+		else
+			return 1
+		end
+	end)
 	debugPrint({"Calculated vehicle multipliers", result, paramsByCat, year})
 	return result
 end
 
+--- For saving into lua file.
+function vehicle_stats.getAllVehicleAvailabilityAndScoresByCategory()
+	local allVehicles = getAllTransportVehiclesFromRep()
+	local result = table_util.mapDict(Category, function(cat) return cat, {} end)
+	for _, metadata in pairs(allVehicles) do
+		if not metadata.transportVehicle.multipleUnitOnly then
+			local score = calculateVehicleScore(metadata)
+			if score > 0 then
+				local carrier = metadata.transportVehicle.carrier
+				local cat = carrierToCategory[carrier]
+				local avail = metadata.availability
+				table.insert(result[cat], {
+					avail and avail.yearFrom or 0,
+					avail and avail.yearTo or 0,
+					score
+				})
+			end
+		end
+	end
+	return result
+end
+
+--- For data analysis.
 function vehicle_stats.printVehicleStats()
-	local allVehicles = getAllTransportVehicles()
+	local allVehicles = getAllTransportVehiclesFromRep()
 	local carrierToStr = table_util.mapDict(game_enum.Carrier, function(v, k) return v, k end)
 	print("Carrier,Name,YearFrom,YearTo,Capacity,Speed (m/s),Power (kW),Price ($)")
 	for _, metadata in pairs(allVehicles) do
@@ -151,5 +175,37 @@ function vehicle_stats.printVehicleStats()
 		print(string.format("%s,%s,%d,%d,%d,%.2f,%.2f,%d", carrier, name, yearFrom, yearTo, capacity, topSpeed, power, price))
 	end
 end
+
+---@class VehicleMultCalculator
+local Calculator = {}
+
+---Create new instance.
+---@param paramsByCat VehicleMultParams
+---@param vehicleStatsByCat table Lists of vehicle stats {yearFrom,yearTo,score} by category.
+---@return VehicleMultipliers
+function Calculator.new(paramsByCat, vehicleStatsByCat)
+	---@class VehicleMultipliers
+	local o = {}
+	---@type VehicleMultParams
+	o.paramsByCat = paramsByCat
+	o.statsByCat = vehicleStatsByCat
+	o.multsPerYear = {}
+	setmetatable(o, vehicle_stats.VehicleMultCalculator)
+
+	debugPrint({"VehicleMultCalculator.new", o})
+	return o
+end
+
+---@param self VehicleMultipliers
+function Calculator:getMultiplier(category, year)
+	if self.multsPerYear[year] == nil then
+		self.multsPerYear[year] = vehicle_stats.calculateVehicleMultipliers(self.paramsByCat, self.statsByCat, year)
+	end
+	return self.multsPerYear[year][category]
+end
+
+Calculator.__index = Calculator
+
+vehicle_stats.VehicleMultCalculator = Calculator
 
 return vehicle_stats

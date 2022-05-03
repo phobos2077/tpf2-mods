@@ -12,6 +12,8 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
+local table_util = require "lib/table_util"
+
 local inflation = {}
 
 

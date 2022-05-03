@@ -19,7 +19,7 @@ local debug = require 'costly_infrastructure/debug'
 local config = require 'costly_infrastructure/config'
 local debugger = require "debugger"
 
-local persistentData = {}
+--- CONSTANTS
 
 local Category = entity_info.Category
 
@@ -34,6 +34,14 @@ local edgeCategoryToConstruction = {
 	[Category.STREET] = journal_util.Enum.Construction.STREET,
 	[Category.RAIL]   = journal_util.Enum.Construction.TRACK,
 }
+
+
+--- VARIABLES
+
+local persistentData = {}
+
+
+--- FUNCTIONS
 
 local function chargeForMaintenance(chargeAmount, carrierType, constructionType)
 	chargeAmount = math.floor(chargeAmount)
@@ -80,8 +88,7 @@ local function chargeExtraConstructionMaintenance(costMultipliers, inflationByCa
 	statData.constructionMaintenance = maintenanceByType
 end
 
-local function chargeExtraMaintenance()
-	local configData = config.get()
+local function chargeExtraMaintenance(configData)
 	local inflationMults = configData.inflation:getPerCategory()
 	---@class MaintenanceStatData
 	---@field edgeCosts EdgeCostsByCategory
@@ -110,13 +117,15 @@ function data()
 		end,
 		update = function()
 			local currentTime = game.interface.getGameTime().time
+			local configData = config.get()
+
 			local chargeInterval = game.config.chargeMaintenanceInterval
 			if persistentData.lastMaintenanceCharge == nil then
 				-- Make sure extra maintenance charge is always calculated 1 second after regular maintenance
 				persistentData.lastMaintenanceCharge = math.floor(currentTime / chargeInterval) * chargeInterval + 1
 			end
 			if currentTime > persistentData.lastMaintenanceCharge + chargeInterval then
-				chargeExtraMaintenance()
+				-- chargeExtraMaintenance(configData)
 				persistentData.lastMaintenanceCharge = currentTime
 			end
 		end,
