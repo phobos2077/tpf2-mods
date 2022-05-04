@@ -16,11 +16,27 @@ portions of the Software.
 local game_enum = {}
 
 game_enum.Carrier = {
-    ROAD = 0,
-    RAIL = 1,
-    TRAM = 2,
-    AIR = 3,
-    WATER = 4,
+	ROAD = 0,
+	RAIL = 1,
+	TRAM = 2,
+	AIR = 3,
+	WATER = 4,
+}
+
+game_enum.TransportMode = {
+	PERSON = 0,
+	CARGO = 1,
+	CAR = 2,
+	BUS = 3,
+	TRUCK = 4,
+	TRAM = 5,
+	ELECTRIC_TRAM = 6,
+	TRAIN = 7,
+	ELECTRIC_TRAIN = 8,
+	AIRCRAFT = 9,
+	SHIP = 10,
+	SMALL_AIRCRAFT = 11,
+	SMALL_SHIP = 12,
 }
 
 return game_enum

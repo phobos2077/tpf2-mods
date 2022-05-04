@@ -19,7 +19,7 @@ local serialize_util = {}
 ---Serializes given value of any type to string. Only use for very simple values and tables, it is very naive.
 ---@param value any
 ---@return string
-function serialize_util.serialize(value)
+function serializeValue(value)
 	if type(value) == "number" then
 		return tostring(value)
 	elseif type(value) == "string" then
@@ -38,7 +38,7 @@ function serialize_util.serialize(value)
 			else
 				keyStr = (type(k) == "string" and k or "["..serializeValue(k).."]") .. "="
 			end
-			tableStr = (not isFirst and "," or "") .. tableStr .. keyStr .. serializeValue(v)
+			tableStr = tableStr .. (not isFirst and "," or "") .. keyStr .. serializeValue(v)
 			isFirst = false
 		end
 		return "{" .. tableStr .. "}"
@@ -47,5 +47,6 @@ function serialize_util.serialize(value)
 	end
 end
 
+serialize_util.serialize = serializeValue
 
 return serialize_util

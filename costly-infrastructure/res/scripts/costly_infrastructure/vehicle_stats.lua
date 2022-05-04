@@ -42,8 +42,7 @@ local function getAllTransportVehiclesFromRep()
 	local modelRes = api.res.modelRep.get(id)
 	local result = {}
 	while modelRes ~= nil do
-		local transpData = modelRes.metadata.transportVehicle
-		if transpData ~= nil then
+		if modelRes.metadata and modelRes.metadata.transportVehicle then
 			table.insert(result, modelRes.metadata)
 		end
 		id = id + 1
@@ -189,7 +188,8 @@ function Calculator.new(paramsByCat, vehicleStatsByCat)
 	---@type VehicleMultParams
 	o.paramsByCat = paramsByCat
 	o.statsByCat = vehicleStatsByCat
-	o.multsPerYear = {}
+	o.multByCat = nil
+	o.multsYear = nil
 	setmetatable(o, vehicle_stats.VehicleMultCalculator)
 
 	debugPrint({"VehicleMultCalculator.new", o})
@@ -198,10 +198,11 @@ end
 
 ---@param self VehicleMultipliers
 function Calculator:getMultiplier(category, year)
-	if self.multsPerYear[year] == nil then
-		self.multsPerYear[year] = vehicle_stats.calculateVehicleMultipliers(self.paramsByCat, self.statsByCat, year)
+	if not self.multByCat or not self.multsYear or self.multsYear ~= year then
+		self.multByCat = vehicle_stats.calculateVehicleMultipliers(self.paramsByCat, self.statsByCat, year)
+		self.multsYear = year
 	end
-	return self.multsPerYear[year][category]
+	return self.multByCat[category]
 end
 
 Calculator.__index = Calculator

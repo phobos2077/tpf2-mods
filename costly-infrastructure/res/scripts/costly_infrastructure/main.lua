@@ -49,11 +49,6 @@ local function modelModifier(fileName, data)
 			cost.price = cost.price * costMult
 		end
 	end
-    -- Remember loaded vehicles metadata for later use in Construction UpdateFn.
-	if data.metadata and data.metadata.transportVehicle then
-        -- debugPrint({"remember vehicle", fileName, type(configData)})
-		loadedTransportVehicles[fileName] = data.metadata
-	end
 	return data
 end
 
