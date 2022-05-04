@@ -39,4 +39,26 @@ game_enum.TransportMode = {
 	SMALL_SHIP = 12,
 }
 
+game_enum.ConstructionType = {
+    STREET_STATION = 0,
+    RAIL_STATION = 1,
+    AIRPORT = 2,
+    HARBOR = 3,
+    STREET_STATION_CARGO = 4,
+    RAIL_STATION_CARGO = 5,
+    HARBOR_CARGO = 6,
+    STREET_DEPOT = 7,
+    RAIL_DEPOT = 8,
+    WATER_DEPOT = 9,
+    INDUSTRY = 10,
+    ASSET_DEFAULT = 11,
+    ASSET_TRACK = 12,
+    TOWN_BUILDING = 13,
+    STREET_CONSTRUCTION = 14,
+    NONE = 15,
+    AIRPORT_CARGO = 16,
+    TRACK_CONSTRUCTION = 17,
+    WATER_WAYPOINT = 18,
+}
+
 return game_enum

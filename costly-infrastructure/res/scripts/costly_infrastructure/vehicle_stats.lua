@@ -15,7 +15,7 @@ portions of the Software.
 local table_util = require 'lib/table_util'
 local math_ex = require 'lib/math_ex'
 local game_enum = require 'lib/game_enum'
-local Category = (require 'costly_infrastructure/entity_info').Category
+local Category = (require 'costly_infrastructure/enum').Category
 
 local vehicle_stats = {}
 
@@ -28,9 +28,6 @@ local carrierToCategory = {
 	[Carrier.WATER] = Category.WATER
 }
 
-local function currentYear()
-	return game.interface.getGameTime().date.year
-end
 
 local function isAvailable(year, yearFrom, yearTo)
 	return (not yearFrom or yearFrom == 0 or year >= yearFrom) and

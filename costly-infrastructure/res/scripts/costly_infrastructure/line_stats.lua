@@ -15,7 +15,9 @@ portions of the Software.
 local table_util = require 'lib/table_util'
 local math_ex = require 'lib/math_ex'
 local game_enum = require 'lib/game_enum'
-local Category = (require 'costly_infrastructure/entity_info').Category
+local enum = require 'costly_infrastructure/enum'
+
+local Category = enum.Category
 local TransportMode = game_enum.TransportMode
 
 local line_stats = {}
@@ -74,20 +76,21 @@ local function getCategoryByTransportModes(transportModes, lineId)
     return cat
 end
 
-function line_stats.calculateAverageLineRatesByCategory()
+function line_stats.calculateTotalLineRatesByCategory()
     local lineIds = api.engine.system.lineSystem.getLines()
-    local stats = table_util.mapDict(Category, function(cat) return cat, {0, 0} end)
+    local rates = table_util.mapDict(Category, function(cat) return cat, 0 end)
     for _, id in pairs(lineIds) do
         local lineInfo = game.interface.getEntity(id)
         local line = api.engine.getComponent(id, api.type.ComponentType.LINE)
-        local cat = getCategoryByTransportModes(line.vehicleInfo.transportModes, id)
-        if cat then
-            local stat = stats[cat]
-            stat[1] = stat[1] + 1
-            stat[2] = stat[2] + lineInfo.rate
+        if lineInfo ~= nil and line ~= nil then
+            local numStops = #line.stops
+            local cat = getCategoryByTransportModes(line.vehicleInfo.transportModes, id)
+            if cat then
+                rates[cat] = rates[cat] + lineInfo.rate * numStops
+            end
         end
     end
-    return table_util.map(stats, function(stat) return stat[1] > 0 and stat[2]/stat[1] or 0 end)
+    return rates
 end
 
 return line_stats

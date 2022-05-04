@@ -106,6 +106,21 @@ function table_util.reduce(t, func, result)
     return result
 end
 
+--- Groups values from list into a new dictionary using key selector function.
+---@param t table
+---@param func function Key selector (value, key).
+function table_util.groupBy(t, func)
+    local result = {}
+    for k, v in pairs(t) do
+        local key = func(v, k)
+        if not result[key] then
+            result[key] = {}
+        end
+        result[k] = v
+    end
+    return result
+end
+
 --- Sum values from table.
 ---@param t table
 ---@param selectorFunc function? If nil, table values will be summed.

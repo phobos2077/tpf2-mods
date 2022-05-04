@@ -14,14 +14,15 @@ portions of the Software.
 
 local journal_util = require 'lib/journal_util'
 local table_util = require 'lib/table_util'
-local entity_info = require 'costly_infrastructure/entity_info'
+local entity_costs = require 'costly_infrastructure/entity_costs'
+local enum = require 'costly_infrastructure/enum'
 local debug = require 'costly_infrastructure/debug'
 local config = require 'costly_infrastructure/config'
 local debugger = require "debugger"
 
 --- CONSTANTS
 
-local Category = entity_info.Category
+local Category = enum.Category
 
 local categoryToCarrier = {
 	[Category.STREET] = journal_util.Enum.Carrier.ROAD,
@@ -62,7 +63,7 @@ local function chargeExtraEdgeMaintenance(inflationByCategory, statData)
 		-- First multiply by vanilla 1/120 cost-to-maintenance ratio and then by inflation minus 1 to account for maintenance charged by game engine.
 		local finalMult = config.vanillaMaintenanceCostMult * (inflationByCategory[cat] - 1)
 		if finalMult > 0 then
-			edgeCostsByCategory = edgeCostsByCategory or entity_info.getTotalEdgeCostsByCategory()
+			edgeCostsByCategory = edgeCostsByCategory or entity_costs.getTotalEdgeCostsByCategory()
 			local chargedAmount = chargeForMaintenance(edgeCostsByCategory[cat] * finalMult, categoryToCarrier[cat], constructionType)
 			table_util.incInTable(statData.chargedByCategory, cat, chargedAmount)
 		end
@@ -79,7 +80,7 @@ local function chargeExtraConstructionMaintenance(costMultipliers, inflationByCa
 	for cat, inflation in pairs(inflationByCategory) do
 		local finalMult = costMultipliers[cat] * inflation - 1
 		if finalMult > 0 then
-			maintenanceByType = maintenanceByType or entity_info.getTotalConstructionMaintenanceByCategory()
+			maintenanceByType = maintenanceByType or entity_costs.getTotalConstructionMaintenanceByCategory()
 			-- Multiply actual un-modded maintenance totals for this type.
 			local chargedAmount = chargeForMaintenance(maintenanceByType[cat] * finalMult, categoryToCarrier[cat], journal_util.Enum.Construction.STATION)
 			table_util.incInTable(statData.chargedByCategory, cat, chargedAmount)

@@ -14,11 +14,9 @@ portions of the Software.
 
 local table_util = require "lib/table_util"
 local config_util = require "lib/config_util"
-local entity_info = require "costly_infrastructure/entity_info"
-local inflation = require "costly_infrastructure/inflation"
-local vehicle_stats = require 'costly_infrastructure/vehicle_stats'
+-- local inflation = require "costly_infrastructure/inflation"
 
-local Category = entity_info.Category
+local Category = (require "costly_infrastructure/enum").Category
 
 ---@class ConfigClass
 local config = {}
@@ -27,7 +25,6 @@ local config = {}
 
 -- Vanilla multiplier of maintenance costs based on construction costs.
 config.vanillaMaintenanceCostMult = 1/120
-
 
 
 local makeSliderData = config_util.genParamTypeLinear

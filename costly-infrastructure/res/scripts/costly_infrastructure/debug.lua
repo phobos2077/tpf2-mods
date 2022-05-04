@@ -1,6 +1,7 @@
-local entity_info = require 'costly_infrastructure/entity_info'
+local entity_costs = require 'costly_infrastructure/entity_costs'
 local vehicle_stats = require 'costly_infrastructure/vehicle_stats'
 local line_stats = require 'costly_infrastructure/line_stats'
+local station_stats = require 'costly_infrastructure/station_stats'
 
 local debug = {}
 
@@ -16,6 +17,10 @@ function debug.getAllEntityComponents(entity)
 	return result
 end
 
+function debug.findEntities(type, radius)
+	return game.interface.getEntities({pos = game.gui.getTerrainPos(), radius = radius or 100}, {type = type or "CONSTRUCTION"})
+end
+
 -- game.interface.getEntities({radius = 1e10}, {type = "BASE_EDGE"})
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printAllEntityComponents", e))
 function debug.printAllEntityComponents(entity)
@@ -26,13 +31,13 @@ end
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printTotalEdgeCosts"))
 function debug.printTotalEdgeCosts()
 	debugPrint("Printing edge costs by type")
-	debugPrint(entity_info.getTotalEdgeCostsByCategory())
+	debugPrint(entity_costs.getTotalEdgeCostsByCategory())
 end
 
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printTotalConstructionMaintenance"))
 function debug.printTotalConstructionMaintenance()
 	debugPrint("Printing construction maintenance costs by type")
-	debugPrint(entity_info.getTotalConstructionMaintenanceByCategory())
+	debugPrint(entity_costs.getTotalConstructionMaintenanceByCategory())
 end
 
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printVehicleStats"))
@@ -43,8 +48,14 @@ end
 
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printLineStats"))
 function debug.printLineStats()
-	debugPrint("Printing Averag Line Rates")
-	debugPrint(line_stats.calculateAverageLineRatesByCategory())
+	debugPrint("Printing Total Line Rates")
+	debugPrint(line_stats.calculateTotalLineRatesByCategory())
+end
+
+-- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printStationStats"))
+function debug.printStationStats()
+	debugPrint("Printing Station Capacities")
+	debugPrint(station_stats.getTotalCapacityOfAllStationsByCategory())
 end
 
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printGameInterface"))

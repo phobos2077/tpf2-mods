@@ -5,7 +5,7 @@ local config = require "costly_infrastructure/config"
 local debugger = require "debugger"
 local vehicle_stats = require "costly_infrastructure/vehicle_stats"
 
-local Category = entity_info.Category
+local Category = (require "costly_infrastructure/enum").Category
 
 local VEHICLE_STATS_FILENAME = "phobos2077_vehicle_stats.lua"
 
