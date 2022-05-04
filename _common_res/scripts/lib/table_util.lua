@@ -71,6 +71,15 @@ function table_util.incInMultiTable(t, ...)
     return table_util.incInTable(t, key, num)
 end
 
+--- Append values from other list into a given list.
+---@param list table List to insert values to.
+---@param other table
+function table_util.iinsert(list, other)
+    for _, v in ipairs(other) do
+        table.insert(list, v)
+    end
+end
+
 
 --- Map table values.
 ---@param t table
@@ -82,6 +91,7 @@ function table_util.map(t, func)
     end
     return result
 end
+
 
 --- Map table values as dictionary, changing keys.
 ---@param t table
@@ -116,7 +126,7 @@ function table_util.groupBy(t, func)
         if not result[key] then
             result[key] = {}
         end
-        result[k] = v
+        result[key][k] = v
     end
     return result
 end
@@ -144,6 +154,21 @@ function table_util.max(t, selectorFunc)
         local cmpValue = selectorFunc(value, key)
         return (cur == nil or cmpValue > cur) and cmpValue or cur
     end, nil)
+end
+
+--- Find first value in list satisfies predicate.
+---@param t table List
+---@param selectorFunc function? If nil, first value will be returned.
+---@return any First value.
+function table_util.ifirst(t, selectorFunc)
+    if selectorFunc == nil then
+        selectorFunc = function () return true end
+    end
+    for i, v in ipairs(t) do
+        if selectorFunc(v, i) then
+            return v
+        end
+    end
 end
 
 ---Concats list table to string

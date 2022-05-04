@@ -14,26 +14,12 @@ portions of the Software.
 
 local table_util = require 'lib/table_util'
 local math_ex = require 'lib/math_ex'
-local game_enum = require 'lib/game_enum'
+local entity_info = require 'costly_infrastructure/entity_info'
 local enum = require 'costly_infrastructure/enum'
 
 local Category = enum.Category
-local TransportMode = game_enum.TransportMode
 
 local line_stats = {}
-
-local transportModeToCategory = {
-	[TransportMode.BUS] = Category.STREET,
-	[TransportMode.TRUCK] = Category.STREET,
-	[TransportMode.TRAM] = Category.STREET,
-	[TransportMode.ELECTRIC_TRAM] = Category.STREET,
-	[TransportMode.TRAIN] = Category.RAIL,
-	[TransportMode.ELECTRIC_TRAIN] = Category.RAIL,
-	[TransportMode.AIRCRAFT] = Category.AIR,
-	[TransportMode.SMALL_AIRCRAFT] = Category.AIR,
-	[TransportMode.SHIP] = Category.WATER,
-	[TransportMode.SMALL_SHIP] = Category.WATER,
-}
 
 local function calculateLineStatsByMode()
     local lineIds = api.engine.system.lineSystem.getLines()
@@ -59,23 +45,6 @@ local function calculateLineStatsByMode()
     return stats
 end
 
-local function getCategoryByTransportModes(transportModes, lineId)
-    local cat
-    for mode, flag in pairs(transportModes) do
-        if flag and flag == 1 then
-            local potentialCat = transportModeToCategory[mode - 1]
-            if potentialCat then
-                if not cat then
-                    cat = potentialCat
-                elseif potentialCat ~= cat then
-                    print("! ERROR ! Line "..lineId.." matched more than 1 category: "..potentialCat..", "..cat)
-                end
-            end
-        end
-    end
-    return cat
-end
-
 function line_stats.calculateTotalLineRatesByCategory()
     local lineIds = api.engine.system.lineSystem.getLines()
     local rates = table_util.mapDict(Category, function(cat) return cat, 0 end)
@@ -84,7 +53,7 @@ function line_stats.calculateTotalLineRatesByCategory()
         local line = api.engine.getComponent(id, api.type.ComponentType.LINE)
         if lineInfo ~= nil and line ~= nil then
             local numStops = #line.stops
-            local cat = getCategoryByTransportModes(line.vehicleInfo.transportModes, id)
+            local cat = entity_info.getCategoryByTransportModes(line.vehicleInfo.transportModes, "Line "..id)
             if cat then
                 rates[cat] = rates[cat] + lineInfo.rate * numStops
             end

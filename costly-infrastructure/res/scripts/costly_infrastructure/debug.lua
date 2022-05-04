@@ -63,4 +63,12 @@ function debug.printGameInterface()
 	debugPrint(game.interface)
 end
 
+function debug.unloadMod()
+	for name,_ in pairs(package.loaded) do
+		if string.find(name,"costly_infrastructure") == 1 then
+			package.loaded[name] = nil
+		end
+	end
+end
+
 return debug

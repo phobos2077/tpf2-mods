@@ -30,23 +30,53 @@ local function getPersonEdgeCapacity(edgeId)
 	return personAtTerminalSystem.getNumFreePlaces(edgeId) + numPersons
 end
 
-local function getTotalStationCapacityAtConstruction(construction)
-    return table_util.sum(construction.stations, function(stationId)
-        local station = api.engine.getComponent(stationId, api.type.ComponentType.STATION)
-        local terminalCapacity = table_util.sum(station.terminals, function(terminal)
-            return table_util.sum(terminal.personEdges, function(edgeId)
-				return station.cargo
-					and getCargoEdgeCapacity(edgeId)
-					or getPersonEdgeCapacity(edgeId)
-            end)
-        end)
-        return terminalCapacity + station.pool.moreCapacity
-    end)
-end
+local function getTotalStationCapacity(stationId)
+    local station = api.engine.getComponent(stationId, api.type.ComponentType.STATION)
+	if not station.terminals or #station.terminals == 0 then
+		return 0
+	end
+	-- Assume station can have nodes&edges only within one entity.
+	-- First gather all edges related to this tation.
+	
+	local tns = {}
+	local function getTn(entityId)
+		local tn = tns[entityId]
+		if tn == nil then
+			tn = api.engine.getComponent(entityId, api.type.ComponentType.TRANSPORT_NETWORK)
+			tns[entityId] = tn
+		end
+		return tn
+	end
+	local stationEdgeIds = {}
+	for _, terminal in pairs(station.terminals) do
+		if #terminal.personEdges > 0 then
+			table_util.iinsert(stationEdgeIds, terminal.personEdges)
+		elseif #terminal.personNodes > 0 then
+			-- Have to manually find edgeIds.
+			local nodeIdsByEntity = table_util.groupBy(terminal.personNodes, function(nodeId) return nodeId.entity end)
+			for entity, nodeIds in pairs(nodeIdsByEntity) do
+				local tn = getTn(entity)
+				-- Edges connected to station node are taken.
+				for i, edge in ipairs(tn.edges) do
+					for _, nodeId in pairs(nodeIds) do
+						if edge.conns[1] == nodeId or edge.conns[2] == nodeId then
+							table.insert(stationEdgeIds, api.type.EdgeId.new(nodeId.entity, i - 1))
+							break
+						end
+					end
+				end
+			end
+		end
+	end
+	if #stationEdgeIds == 0 then return 0 end
 
-function station_stats.getTotalStationCapacityTest(id)
-    local construction = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)
-    return getTotalStationCapacityAtConstruction(construction)
+	local stationInfo = game.interface.getEntity(stationId)
+	local category = stationInfo.carriers and entity_info.getCategoryByCarriers(stationInfo.carriers)
+	return table_util.sum(stationEdgeIds, function(edgeId)
+		return station.cargo
+			and getCargoEdgeCapacity(edgeId)
+			or getPersonEdgeCapacity(edgeId)
+	end), category
 end
 
 function station_stats.getPlayerOwnedConstructions()
@@ -67,19 +97,20 @@ end
 
 function station_stats.getTotalCapacityOfAllStationsByCategory()
     local player = game.interface.getPlayer()
-    local allConstructions = entity_util.findAllEntitiesOfType("CONSTRUCTION")
+    local allStations = entity_util.findAllEntitiesOfType("STATION")
     local result = table_util.mapDict(Category, function(cat) return cat, 0 end)
-    for _, constructionId in pairs(allConstructions) do
-        local construction = api.engine.getComponent(constructionId, api.type.ComponentType.CONSTRUCTION)
-        if construction ~= nil and #construction.stations > 0 and entity_util.isPlayerOwned(constructionId, player) then
-            local category = entity_info.getCategoryByConstructionFileName(construction.fileName)
-            if category then
-                result[category] = result[category] + getTotalStationCapacityAtConstruction(construction, constructionId)
-            end
-        end
+
+    for _, stationId in pairs(allStations) do
+		if entity_util.isPlayerOwned(stationId, player) then
+			local capacity, category = getTotalStationCapacity(stationId)
+			if category and capacity then
+				result[category] = result[category] + capacity
+			end
+		end
     end
     return result
 end
 
+station_stats.getTotalStationCapacity = getTotalStationCapacity
 
 return station_stats
