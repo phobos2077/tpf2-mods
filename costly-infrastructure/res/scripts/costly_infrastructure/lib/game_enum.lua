@@ -15,6 +15,7 @@ portions of the Software.
 
 local game_enum = {}
 
+---@type table<string, number>
 game_enum.Carrier = {
 	ROAD = 0,
 	RAIL = 1,
@@ -23,6 +24,7 @@ game_enum.Carrier = {
 	WATER = 4,
 }
 
+---@type table<string, number>
 game_enum.TransportMode = {
 	PERSON = 0,
 	CARGO = 1,
@@ -39,6 +41,7 @@ game_enum.TransportMode = {
 	SMALL_SHIP = 12,
 }
 
+---@type table<string, number>
 game_enum.ConstructionType = {
     STREET_STATION = 0,
     RAIL_STATION = 1,

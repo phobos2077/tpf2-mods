@@ -111,7 +111,7 @@ local function chargeExtraMaintenance(configData)
 	local linesRateByCat = line_stats.getTotalLineRatesByCategory()
 	local usageMultByCat = table_util.mapDict(Category, function(cat)
 		return cat, calculateUsageMult(linesRateByCat[cat], stationCapacityByCat[cat], configData.maintenanceCostParams[cat])
-	 end)
+	end)
 	
 	---@class MaintenanceStatData
 	---@field edgeCosts EdgeCostsByCategory
@@ -121,7 +121,8 @@ local function chargeExtraMaintenance(configData)
 	chargeExtraEdgeMaintenance(usageMultByCat, statData)
 	chargeExtraConstructionMaintenance(configData.costMultipliers, usageMultByCat, statData)
 
-	debugPrint({msg = "Charged Extra Maintenance", stats = statData, usageMult = usageMultByCat, costMult = configData.costMultipliers})
+	debugPrint({msg = "Charged Extra Maintenance", stats = statData, usageMult = usageMultByCat, rates = linesRateByCat, capacity = stationCapacityByCat,
+		costMult = configData.costMultipliers, maint = configData.maintenanceCostParams})
 
 	--[[
 	local charged = statData.chargedByCategory

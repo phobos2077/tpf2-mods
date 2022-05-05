@@ -111,6 +111,11 @@ local function calculateVehicleScore(metadata)
 	end
 end
 
+---Calculate vehicle multiplier.
+---@param paramsByCat {string: VehicleMultParam}
+---@param statsByCat {string: table}
+---@param year number
+---@return {string: number}
 function vehicle_stats.calculateVehicleMultipliers(paramsByCat, statsByCat, year)
 	local bestScoreByCategory = getBestAvailableVehicleScoreByCategory(year, statsByCat)
 	local result = table_util.map(paramsByCat, function(params, cat)
@@ -176,13 +181,13 @@ end
 local Calculator = {}
 
 ---Create new instance.
----@param paramsByCat VehicleMultParams
----@param vehicleStatsByCat table Lists of vehicle stats {yearFrom,yearTo,score} by category.
----@return VehicleMultipliers
+---@param paramsByCat table<string, VehicleMultParam>
+---@param vehicleStatsByCat table<string, number[]> Lists of vehicle stats {yearFrom,yearTo,score} by category.
+---@return VehicleMultCalculator
 function Calculator.new(paramsByCat, vehicleStatsByCat)
-	---@class VehicleMultipliers
+	---@class VehicleMultCalculator
 	local o = {}
-	---@type VehicleMultParams
+	---@type table<string, VehicleMultParam>
 	o.paramsByCat = paramsByCat
 	o.statsByCat = vehicleStatsByCat
 	o.multByCat = nil
@@ -193,7 +198,7 @@ function Calculator.new(paramsByCat, vehicleStatsByCat)
 	return o
 end
 
----@param self VehicleMultipliers
+---@param self VehicleMultCalculator
 function Calculator:getMultiplier(category, year)
 	if not self.multByCat or not self.multsYear or self.multsYear ~= year then
 		self.multByCat = vehicle_stats.calculateVehicleMultipliers(self.paramsByCat, self.statsByCat, year)

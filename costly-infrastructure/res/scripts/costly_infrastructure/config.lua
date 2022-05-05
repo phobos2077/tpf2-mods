@@ -27,26 +27,36 @@ local config = {}
 config.vanillaMaintenanceCostMult = 1/120
 
 
-local makeSliderData = config_util.genParamTypeLinear
+local function genSlider(labelFunc, defaultVal, ...) return config_util.genParamLinear(labelFunc, "SLIDER", defaultVal, ...) end
 local fmt = config_util.fmt
 
 local paramTypes = {
-	cost = function(default) return makeSliderData(0.25, 8, 0.25, default or 1, fmt.percent) end,
-	upgrade = function(default) return makeSliderData(0.5, 4, 0.5, default or 3, fmt.timesX) end,
-	terrain = function(default) return makeSliderData(0.5, 8, 0.5, default or 1, fmt.timesX) end,
-	inflation = function(default) return makeSliderData(1, 30, 1, default or 10, fmt.timesX) end,
-	year = function (min, max, default)	return makeSliderData(min, max, 10, default) end,
+	cost = function(default) return genSlider(fmt.percent, default or 1, {0.25, 2.0, 0.25}, {2.5, 4.0, 0.5}, {5, 10, 1}) end,
+	--maint = function(default) return genSlider(fmt.percent, default or 1, {0.25, 1.5, 0.25}, {2.0, 4.0, 0.5}) end,
+	vehMult = function(default) return genSlider(fmt.timesX, default or 10, {1, 4, 0.5}, {5, 10, 1}, {12, 20, 2}) end,
+	upgrade = function(default) return genSlider(fmt.timesX, default or 3, 0.5, 4, 0.5) end,
+	terrain = function(default) return genSlider(fmt.timesX, default or 1, {0.5, 3, 0.5}, {4, 8, 1}) end,
+	--inflation = function(default) return genSlider(fmt.timesX, default or 10, 1, 30, 1) end,
+	year = function (min, max, default)	return genSlider(nil, default, min, max, 10) end,
 }
 
 local allParams = {
 	{"mult_street", paramTypes.cost(1.5)},
-	{"mult_rail", paramTypes.cost(2)},
+	{"mult_rail", paramTypes.cost(1.5)},
 	{"mult_water", paramTypes.cost(1.5)},
-	{"mult_air", paramTypes.cost(0.5)},
+	{"mult_air", paramTypes.cost(1)},
 	{"mult_bridges_tunnels", paramTypes.terrain(3)},
 	{"mult_terrain", paramTypes.terrain(1)},
 	{"mult_upgrade_track", paramTypes.upgrade()},
 	{"mult_upgrade_street", paramTypes.upgrade()},
+	{"veh_mult_street", paramTypes.vehMult(10)},
+	{"veh_mult_rail", paramTypes.vehMult(10)},
+	{"veh_mult_water", paramTypes.vehMult(6)},
+	{"veh_mult_air", paramTypes.vehMult(3)},
+	{"maint_mult_street", paramTypes.cost(1)},
+	{"maint_mult_rail", paramTypes.cost(3)},
+	{"maint_mult_water", paramTypes.cost(2)},
+	{"maint_mult_air", paramTypes.cost(2)},
 --[[
 	{"inflation_year_start", paramTypes.year(1850, 1950, 1880)},
 	{"inflation_year_end", paramTypes.year(2000, 2100, 2000)},
@@ -57,6 +67,7 @@ local allParams = {
 	]]
 }
 
+---@param params number[]
 local function getDataFromParams(params)
 	-- debugPrint({"getDataFromParams", params})
 	---@class ConfigObject : ConfigClass
@@ -73,49 +84,52 @@ local function getDataFromParams(params)
 		trackUpgrades = params.mult_upgrade_track,
 		streetUpgrades = params.mult_upgrade_street
 	}
-	---@class VehicleMultParams
+	--- These are calculated against roster of available vehicles and result is change construction build costs.
+	---@type table<string, VehicleMultParam>
 	o.vehicleMultParams = {
-		[Category.RAIL] = {
-			base = 70, -- Baldwin's Six-Wheels
-			max = 6500, -- Russian Class VL80S
-			exp = 0.5,
-			mult = 10, -- TODO: user-configurable
-		},
+		---@class VehicleMultParam
 		[Category.STREET] = {
 			base = 20, -- Stagecoach
 			max = 1000, -- Cascadia Tank Truck
 			exp = 0.5,
-			mult = 10, -- TODO: user-configurable
+			mult = params.veh_mult_street
+		},
+		[Category.RAIL] = {
+			base = 70, -- Baldwin's Six-Wheels
+			max = 6500, -- Russian Class VL80S
+			exp = 0.5,
+			mult = params.veh_mult_rail,
 		},
 		[Category.WATER] = {
 			base = 550, -- Zoroaster
 			max = 3200, -- Cascadia Tank Truck
 			exp = 0.5,
-			mult = 10, -- TODO: user-configurable
+			mult = params.veh_mult_water,
 		},
 		[Category.AIR] = {
 			base = 330, -- Vickers Victoria
 			max = 13000, -- Tupolev TU-204
 			exp = 0.5,
-			mult = 10, -- TODO: user-configurable
+			mult = params.veh_mult_air,
 		},
 	}
+	---@type table<string,MaintenanceCostParam>
 	o.maintenanceCostParams = {
 		---@class MaintenanceCostParam
-		[Category.RAIL] = {
-			mult = 3, -- TODO: user-configurable
+		[Category.STREET] = {
+			mult = params.maint_mult_street,
 			exp = 1.0,
 		},
-		[Category.STREET] = {
-			mult = 1, -- TODO: user-configurable
+		[Category.RAIL] = {
+			mult = params.maint_mult_rail,
 			exp = 1.0,
 		},
 		[Category.WATER] = {
-			mult = 2, -- TODO: user-configurable
+			mult = params.maint_mult_water,
 			exp = 1.0,
 		},
 		[Category.AIR] = {
-			mult = 2, -- TODO: user-configurable
+			mult = params.maint_mult_air,
 			exp = 1.0,
 		},
 	}
@@ -141,7 +155,7 @@ config.__index = config
 config.allParams = allParams
 
 --- Create and set mod params. Only call from mod.lua's runFn.
----@param rawParams table Mod parameters as indexes to actual values in values table.
+---@param rawParams table<string, number> Mod parameters as indexes to actual values in values table.
 ---@return ConfigObject Config instance.
 function config.createFromParams(rawParams)
 	-- debugPrint({"createFromParams", rawParams})

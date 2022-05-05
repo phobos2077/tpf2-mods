@@ -1,4 +1,5 @@
 return {
+    ---@type table<string, string>
     Category = {
         STREET = "street",
         RAIL = "rail",

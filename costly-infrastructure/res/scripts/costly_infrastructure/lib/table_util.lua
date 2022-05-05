@@ -1,6 +1,6 @@
 --[[
 Table Utilities
-Version: 1.1
+Version: 1.2
 
 Copyright (c)  2022  phobos2077  (https://steamcommunity.com/id/phobos2077)
 
@@ -72,8 +72,9 @@ function table_util.incInMultiTable(t, ...)
 end
 
 --- Append values from other list into a given list.
----@param list table List to insert values to.
----@param other table
+---@generic TArg
+---@param list TArg[] List to insert values to.
+---@param other TArg[]
 function table_util.iinsert(list, other)
     for _, v in ipairs(other) do
         table.insert(list, v)
@@ -82,8 +83,9 @@ end
 
 
 --- Map table values.
----@param t table
----@param func function Map function(value, key).
+---@generic TKey, TValue, TNewValue
+---@param t table<TKey,TValue>
+---@param func fun(v: TValue, k: TKey): TNewValue Map function.
 function table_util.map(t, func)
     local result = {}
     for k, v in pairs(t) do
@@ -94,8 +96,10 @@ end
 
 
 --- Map table values as dictionary, changing keys.
----@param t table
----@param func function Map function(value, key) - should return two values: new key and new value.
+---@generic TKey, TValue
+---@param t table<TKey,TValue>
+---@param func fun(v: TValue, k: TKey): any, any
+---@return table
 function table_util.mapDict(t, func)
     local result = {}
     for k, v in pairs(t) do
@@ -146,8 +150,10 @@ end
 
 
 --- Sum values from table.
----@param t table
----@param selectorFunc function? If nil, table values will be summed.
+---@generic TKey, TValue
+---@param t table<TKey, TValue>
+---@param selectorFunc fun(TValue, TKey): number|nil If nil, table values will be summed.
+---@return number
 function table_util.sum(t, selectorFunc)
     if selectorFunc == nil then
         selectorFunc = function (v) return v end
@@ -171,9 +177,10 @@ function table_util.max(t, selectorFunc)
 end
 
 --- Find first value in list satisfies predicate.
----@param t table List
----@param selectorFunc function? If nil, first value will be returned.
----@return any First value.
+---@generic TArg
+---@param t TArg[] List
+---@param selectorFunc fun(v: TArg, i: number): boolean? If nil, first value will be returned.
+---@return TArg First value.
 function table_util.ifirst(t, selectorFunc)
     if selectorFunc == nil then
         selectorFunc = function () return true end
@@ -183,6 +190,33 @@ function table_util.ifirst(t, selectorFunc)
             return v
         end
     end
+end
+
+--- Generates list of numbers in a given range.
+---@param from number
+---@param to number
+---@param step number
+---@return number[]
+function table_util.range(from, to, step)
+    local result = {}
+    for i = from, to, step do
+        result[#result+1] = i
+    end
+    return result
+end
+
+---Concats multiple lists together.
+---@param ... any[]
+---@return any[]
+function table_util.iconcat(...)
+    local tables = {...}
+    local result = {}
+    for _, table in ipairs(tables) do
+        for _, v in ipairs(table) do
+            result[#result+1] = v
+        end
+    end
+    return result
 end
 
 ---Concats list table to string
