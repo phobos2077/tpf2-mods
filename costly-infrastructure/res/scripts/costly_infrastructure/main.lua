@@ -1,5 +1,5 @@
-local table_util = require "lib/table_util"
-local serialize_util = require "lib/serialize_util"
+local table_util = require "costly_infrastructure/lib/table_util"
+local serialize_util = require "costly_infrastructure/lib/serialize_util"
 local entity_info = require "costly_infrastructure/entity_info"
 local config = require "costly_infrastructure/config"
 local debugger = require "debugger"

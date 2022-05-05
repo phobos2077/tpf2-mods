@@ -1,5 +1,5 @@
-local table_util = require "lib/table_util"
-local entity_util = require "lib/entity_util"
+local table_util = require "costly_infrastructure/lib/table_util"
+local entity_util = require "costly_infrastructure/lib/entity_util"
 local entity_info = require "costly_infrastructure/entity_info"
 local Category = (require "costly_infrastructure/enum").Category
 

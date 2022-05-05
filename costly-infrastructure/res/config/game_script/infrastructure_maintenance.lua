@@ -12,8 +12,8 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
-local journal_util = require 'lib/journal_util'
-local table_util = require 'lib/table_util'
+local journal_util = require 'costly_infrastructure/lib/journal_util'
+local table_util = require 'costly_infrastructure/lib/table_util'
 local entity_costs = require 'costly_infrastructure/entity_costs'
 local enum = require 'costly_infrastructure/enum'
 local debug = require 'costly_infrastructure/debug'

@@ -1,6 +1,6 @@
 --[[
 Table Utilities
-Version: 1.0
+Version: 1.1
 
 Copyright (c)  2022  phobos2077  (https://steamcommunity.com/id/phobos2077)
 

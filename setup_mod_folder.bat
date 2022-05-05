@@ -22,10 +22,6 @@ IF EXIST %target_path% (
 	EXIT /B 3
 )
 
-IF NOT EXIST %mod_name%\res\scripts\lib (
-	mklink /D %mod_name%\res\scripts\lib ..\..\..\_common_res\scripts\lib
-)
-
 mklink /D %target_path% %CD%\%mod_name%
 
 echo Success!

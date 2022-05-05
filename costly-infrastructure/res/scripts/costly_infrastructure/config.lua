@@ -12,8 +12,8 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
-local table_util = require "lib/table_util"
-local config_util = require "lib/config_util"
+-- local table_util = require "costly_infrastructure/lib/table_util"
+local config_util = require "costly_infrastructure/lib/config_util"
 -- local inflation = require "costly_infrastructure/inflation"
 
 local Category = (require "costly_infrastructure/enum").Category

@@ -5,6 +5,8 @@ local station_stats = require 'costly_infrastructure/station_stats'
 
 local debug = {}
 
+-- mydebug = require 'costly_infrastructure/debug'
+
 function debug.getAllEntityComponents(entity)
 	local cts = getmetatable(api.type.ComponentType).__index
 	local result = {}

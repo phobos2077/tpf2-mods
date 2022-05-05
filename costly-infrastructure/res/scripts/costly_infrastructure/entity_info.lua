@@ -1,5 +1,5 @@
-local game_enum = require "lib/game_enum"
-local table_util = require "lib/table_util"
+local game_enum = require "costly_infrastructure/lib/game_enum"
+local table_util = require "costly_infrastructure/lib/table_util"
 local enum = require "costly_infrastructure/enum"
 
 local entity_info = {}

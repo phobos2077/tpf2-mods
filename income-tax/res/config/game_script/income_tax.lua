@@ -12,8 +12,8 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
-local journal_util = require 'lib/journal_util'
-local table_util = require 'lib/table_util'
+local journal_util = require 'income_tax/lib/journal_util'
+local table_util = require 'income_tax/lib/table_util'
 local taxes = require 'income_tax/taxes'
 local config = require 'income_tax/config'
 

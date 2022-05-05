@@ -13,7 +13,7 @@ portions of the Software.
 --]]
 
 
-local config_util = require "lib/config_util"
+local config_util = require "costly_infrastructure/lib/config_util"
 local config = require "costly_infrastructure/config"
 local main = require "costly_infrastructure/main"
 
@@ -21,7 +21,7 @@ local main = require "costly_infrastructure/main"
 function data()
 	return {
 		info = {
-			minorVersion = 5,
+			minorVersion = 6,
 			severityAdd = "NONE",
 			severityRemove = "NONE",
 			name = _("mod name"),
