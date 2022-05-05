@@ -131,6 +131,20 @@ function table_util.groupBy(t, func)
     return result
 end
 
+--- Filter table values.
+---@param t table
+---@param func function Predicate (value, key).
+function table_util.filter(t, func)
+    local result = {}
+    for k, v in pairs(t) do
+        if func(v, k) then
+            result[k] = v
+        end
+    end
+    return result
+end
+
+
 --- Sum values from table.
 ---@param t table
 ---@param selectorFunc function? If nil, table values will be summed.
