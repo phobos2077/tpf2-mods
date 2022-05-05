@@ -1,5 +1,5 @@
 --[[
-Costly Infrastructure Mod
+Costly Infrastructure Mod - v2
 
 Copyright (c)  2022  phobos2077  (https://steamcommunity.com/id/phobos2077)
 
@@ -21,7 +21,7 @@ local main = require "costly_infrastructure/main"
 function data()
 	return {
 		info = {
-			minorVersion = 6,
+			minorVersion = 0,
 			severityAdd = "NONE",
 			severityRemove = "NONE",
 			name = _("mod name"),
