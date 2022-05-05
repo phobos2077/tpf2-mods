@@ -14,10 +14,15 @@ portions of the Software.
 
 local journal_util = require 'costly_infrastructure/lib/journal_util'
 local table_util = require 'costly_infrastructure/lib/table_util'
+local math_ex = require 'costly_infrastructure/lib/math_ex'
+
 local entity_costs = require 'costly_infrastructure/entity_costs'
+local line_stats = require 'costly_infrastructure/line_stats'
+local station_stats = require 'costly_infrastructure/station_stats'
 local enum = require 'costly_infrastructure/enum'
 local debug = require 'costly_infrastructure/debug'
 local config = require 'costly_infrastructure/config'
+
 local debugger = require "debugger"
 
 --- CONSTANTS
@@ -73,12 +78,12 @@ end
 
 --- Charge extra maintenance for all constructions (stations, depos).
 ---@param costMultipliers table
----@param inflationByCategory table
+---@param usageMultByCategory table
 ---@param statData table
-local function chargeExtraConstructionMaintenance(costMultipliers, inflationByCategory, statData)
+local function chargeExtraConstructionMaintenance(costMultipliers, usageMultByCategory, statData)
 	local maintenanceByType
-	for cat, inflation in pairs(inflationByCategory) do
-		local finalMult = costMultipliers[cat] * inflation - 1
+	for cat, usageMult in pairs(usageMultByCategory) do
+		local finalMult = costMultipliers[cat] * usageMult - 1
 		if finalMult > 0 then
 			maintenanceByType = maintenanceByType or entity_costs.getTotalConstructionMaintenanceByCategory()
 			-- Multiply actual un-modded maintenance totals for this type.
@@ -89,23 +94,41 @@ local function chargeExtraConstructionMaintenance(costMultipliers, inflationByCa
 	statData.constructionMaintenance = maintenanceByType
 end
 
+---Calculate infrastructure usage multiplier.
+---@param linesRate number Total rates (line.rate * #line.stops) of all lines for this category.
+---@param stationsCapacity number Total capacities of all stations for category.
+---@param params MaintenanceCostParam
+local function calculateUsageMult(linesRate, stationsCapacity, params)
+	local mult = stationsCapacity > 0
+		and (linesRate / stationsCapacity)^params.exp * params.mult
+		or 0
+	return math.max(mult, 1)
+end
+
+---@param configData ConfigObject
 local function chargeExtraMaintenance(configData)
-	local inflationMults = configData.inflation:getPerCategory()
+	local stationCapacityByCat = station_stats.getTotalCapacityOfAllStationsByCategory()
+	local linesRateByCat = line_stats.getTotalLineRatesByCategory()
+	local usageMultByCat = table_util.mapDict(Category, function(cat)
+		return cat, calculateUsageMult(linesRateByCat[cat], stationCapacityByCat[cat], configData.maintenanceCostParams[cat])
+	 end)
+	
 	---@class MaintenanceStatData
 	---@field edgeCosts EdgeCostsByCategory
 	---@field constructionMaintenance ConstructionMaintenanceByCategory
-	local statData = {chargedByCategory = table_util.map(inflationMults, function() return 0 end)}
+	local statData = {chargedByCategory = table_util.map(usageMultByCat, function() return 0 end)}
 	--debugPrint({"Trying to charge extra maintenance costs", inflationMults})
-	chargeExtraEdgeMaintenance(inflationMults, statData)
-	chargeExtraConstructionMaintenance(configData.costMultipliers, inflationMults, statData)
+	chargeExtraEdgeMaintenance(usageMultByCat, statData)
+	chargeExtraConstructionMaintenance(configData.costMultipliers, usageMultByCat, statData)
 
+	debugPrint({msg = "Charged Extra Maintenance", stats = statData, usageMult = usageMultByCat, costMult = configData.costMultipliers})
+
+	--[[
 	local charged = statData.chargedByCategory
 	local total = table_util.sum(charged)
-	local mults = table_util.map(inflationMults, function(infl, cat) return infl * configData.costMultipliers[cat] end)
-	
-	--debugPrint({msg = "Charged Extra Maintenance", stats = statData, inflation = inflationMults, mults = configData.costMultipliers})
-	print(string.format("Charged extra maintenance costs. Rail: $%d, Road: $%d, Water: $%d, Air: $%d. TOTAL = $%d", charged.rail, charged.street, charged.water, charged.air, total)..
-		string.format("\nCurrent multipliers: Rail: %.2f, Road: %.2f, Water: %.2f, Air: %.2f", mults.rail, mults.street, mults.water, mults.air))
+	local mults = table_util.map(usageMultByCat, function(mult, cat) return mult * configData.costMultipliers[cat] end)
+	 print(string.format("Charged extra maintenance costs. Rail: $%d, Road: $%d, Water: $%d, Air: $%d. TOTAL = $%d", charged.rail, charged.street, charged.water, charged.air, total)..
+		string.format("\nFinal multipliers: Rail: %.2f, Road: %.2f, Water: %.2f, Air: %.2f", mults.rail, mults.street, mults.water, mults.air))]]
 end
 
 function data()
@@ -126,7 +149,7 @@ function data()
 				persistentData.lastMaintenanceCharge = math.floor(currentTime / chargeInterval) * chargeInterval + 1
 			end
 			if currentTime > persistentData.lastMaintenanceCharge + chargeInterval then
-				-- chargeExtraMaintenance(configData)
+				chargeExtraMaintenance(configData)
 				persistentData.lastMaintenanceCharge = currentTime
 			end
 		end,

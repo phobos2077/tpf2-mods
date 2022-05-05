@@ -100,6 +100,25 @@ local function getDataFromParams(params)
 			mult = 10, -- TODO: user-configurable
 		},
 	}
+	o.maintenanceCostParams = {
+		---@class MaintenanceCostParam
+		[Category.RAIL] = {
+			mult = 3, -- TODO: user-configurable
+			exp = 1.0,
+		},
+		[Category.STREET] = {
+			mult = 1, -- TODO: user-configurable
+			exp = 1.0,
+		},
+		[Category.WATER] = {
+			mult = 2, -- TODO: user-configurable
+			exp = 1.0,
+		},
+		[Category.AIR] = {
+			mult = 2, -- TODO: user-configurable
+			exp = 1.0,
+		},
+	}
 	--- These are used for both maintenance (all types) and build costs (stations and depos only).
 --[[
 	o.inflation = inflation.InflationParams:new(params.inflation_year_start, params.inflation_year_end, {

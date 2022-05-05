@@ -45,7 +45,7 @@ local function calculateLineStatsByMode()
     return stats
 end
 
-function line_stats.calculateTotalLineRatesByCategory()
+function line_stats.getTotalLineRatesByCategory()
     local lineIds = api.engine.system.lineSystem.getLines()
     local rates = table_util.mapDict(Category, function(cat) return cat, 0 end)
     for _, id in pairs(lineIds) do

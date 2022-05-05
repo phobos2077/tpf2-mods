@@ -88,33 +88,11 @@ local function getStationTnEntity(station)
 	return term.personEdges[1] and term.personEdges[1].entity or term.personNodes[1].entity
 end
 
-function station_stats.getPlayerOwnedConstructions()
-    local player = game.interface.getPlayer()
-    local allConstructions = entity_util.findAllEntitiesOfType("CONSTRUCTION")
-    local result = table_util.mapDict(Category, function(cat) return cat, {} end)
-    for _, constructionId in pairs(allConstructions) do
-        local construction = api.engine.getComponent(constructionId, api.type.ComponentType.CONSTRUCTION)
-        if construction ~= nil and entity_util.isPlayerOwned(constructionId, player) then
-            local category = entity_info.getCategoryByConstructionFileName(construction.fileName)
-            if category then
-                table.insert(result[category], constructionId)
-            end
-        end
-    end
-    return result
-end
-
 function station_stats.getTotalCapacityOfAllStationsByCategory()
     local player = game.interface.getPlayer()
     local result = table_util.mapDict(Category, function(cat) return cat, 0 end)
 
-	local allStations = entity_util.findAllEntitiesOfType("STATION") 
-	--[[table_util.filter(, function(stationId)
-		return 
-	end), function (stationId)
-		return {stationId, }
-	end)]]
-	-- 
+	local allStations = entity_util.findAllEntitiesOfType("STATION")
 
 	local stationsByTnEntity = {}
 	for _, stationId in pairs(allStations) do

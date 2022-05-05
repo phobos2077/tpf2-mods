@@ -51,7 +51,7 @@ end
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printLineStats"))
 function debug.printLineStats()
 	debugPrint("Printing Total Line Rates")
-	debugPrint(line_stats.calculateTotalLineRatesByCategory())
+	debugPrint(line_stats.getTotalLineRatesByCategory())
 end
 
 -- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "debug", "printStationStats"))
