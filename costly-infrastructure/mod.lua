@@ -13,9 +13,9 @@ portions of the Software.
 --]]
 
 
-local config_util = require "costly_infrastructure/lib/config_util"
-local config = require "costly_infrastructure/config"
-local main = require "costly_infrastructure/main"
+local config_util = require "costly_infrastructure_v2/lib/config_util"
+local config = require "costly_infrastructure_v2/config"
+local main = require "costly_infrastructure_v2/main"
 
 
 function data()

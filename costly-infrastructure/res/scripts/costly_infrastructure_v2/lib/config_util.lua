@@ -13,7 +13,7 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
-local table_util = require "costly_infrastructure/lib/table_util"
+local table_util = require "costly_infrastructure_v2/lib/table_util"
 
 local config_util = {}
 

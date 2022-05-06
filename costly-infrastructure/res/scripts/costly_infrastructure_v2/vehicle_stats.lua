@@ -12,10 +12,10 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
-local table_util = require 'costly_infrastructure/lib/table_util'
-local math_ex = require 'costly_infrastructure/lib/math_ex'
-local game_enum = require 'costly_infrastructure/lib/game_enum'
-local Category = (require 'costly_infrastructure/enum').Category
+local table_util = require "costly_infrastructure_v2/lib/table_util"
+local math_ex = require "costly_infrastructure_v2/lib/math_ex"
+local game_enum = require "costly_infrastructure_v2/lib/game_enum"
+local Category = (require "costly_infrastructure_v2/enum").Category
 
 local vehicle_stats = {}
 

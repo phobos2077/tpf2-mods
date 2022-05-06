@@ -1,7 +1,7 @@
-local table_util = require "costly_infrastructure/lib/table_util"
-local entity_util = require "costly_infrastructure/lib/entity_util"
-local entity_info = require "costly_infrastructure/entity_info"
-local Category = (require "costly_infrastructure/enum").Category
+local table_util = require "costly_infrastructure_v2/lib/table_util"
+local entity_util = require "costly_infrastructure_v2/lib/entity_util"
+local entity_info = require "costly_infrastructure_v2/entity_info"
+local Category = (require "costly_infrastructure_v2/enum").Category
 
 local station_stats = {}
 

@@ -1,11 +1,11 @@
-local entity_costs = require 'costly_infrastructure/entity_costs'
-local vehicle_stats = require 'costly_infrastructure/vehicle_stats'
-local line_stats = require 'costly_infrastructure/line_stats'
-local station_stats = require 'costly_infrastructure/station_stats'
+local entity_costs = require "costly_infrastructure_v2/entity_costs"
+local vehicle_stats = require "costly_infrastructure_v2/vehicle_stats"
+local line_stats = require "costly_infrastructure_v2/line_stats"
+local station_stats = require "costly_infrastructure_v2/station_stats"
 
 local debug = {}
 
--- mydebug = require 'costly_infrastructure/debug'
+-- mydebug = require "costly_infrastructure_v2/debug"
 
 function debug.getAllEntityComponents(entity)
 	local cts = getmetatable(api.type.ComponentType).__index

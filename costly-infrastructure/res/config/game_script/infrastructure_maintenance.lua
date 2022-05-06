@@ -12,16 +12,16 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
-local journal_util = require 'costly_infrastructure/lib/journal_util'
-local table_util = require 'costly_infrastructure/lib/table_util'
-local math_ex = require 'costly_infrastructure/lib/math_ex'
+local journal_util = require "costly_infrastructure_v2/lib/journal_util"
+local table_util = require "costly_infrastructure_v2/lib/table_util"
+local math_ex = require "costly_infrastructure_v2/lib/math_ex"
 
-local entity_costs = require 'costly_infrastructure/entity_costs'
-local line_stats = require 'costly_infrastructure/line_stats'
-local station_stats = require 'costly_infrastructure/station_stats'
-local enum = require 'costly_infrastructure/enum'
-local debug = require 'costly_infrastructure/debug'
-local config = require 'costly_infrastructure/config'
+local entity_costs = require "costly_infrastructure_v2/entity_costs"
+local line_stats = require "costly_infrastructure_v2/line_stats"
+local station_stats = require "costly_infrastructure_v2/station_stats"
+local enum = require "costly_infrastructure_v2/enum"
+local debug = require "costly_infrastructure_v2/debug"
+local config = require "costly_infrastructure_v2/config"
 
 local debugger = require "debugger"
 

@@ -1,11 +1,11 @@
-local table_util = require "costly_infrastructure/lib/table_util"
-local serialize_util = require "costly_infrastructure/lib/serialize_util"
-local entity_info = require "costly_infrastructure/entity_info"
-local config = require "costly_infrastructure/config"
+local table_util = require "costly_infrastructure_v2/lib/table_util"
+local serialize_util = require "costly_infrastructure_v2/lib/serialize_util"
+local entity_info = require "costly_infrastructure_v2/entity_info"
+local config = require "costly_infrastructure_v2/config"
 local debugger = require "debugger"
-local vehicle_stats = require "costly_infrastructure/vehicle_stats"
+local vehicle_stats = require "costly_infrastructure_v2/vehicle_stats"
 
-local Category = (require "costly_infrastructure/enum").Category
+local Category = (require "costly_infrastructure_v2/enum").Category
 
 local VEHICLE_STATS_FILENAME = "phobos2077_vehicle_stats.lua"
 
