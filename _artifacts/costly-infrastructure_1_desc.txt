@@ -1,21 +1,26 @@
-!! IMPORTANT: 
-- Latest TF2 BETA is REQUIRED!
-- Make sure to set Infrastructure Purchase and Maintenance costs to 100% in Advanced settings, for best results!
-
+!! IMPORTANT:
+- Requires Spring 2022 Update (beta), see note below
 
 Incentivizes building optimal infrastructure by increasing maintenance and build costs of various pieces of infrastructure, such as tracks, stations, depots, etc.
-Costs change dynamically and non-linearly as you progress through the years. So at 1850 you will mostly see the default low costs but they will gradually increase. See attached image for an example of how cost over years curve looks like.
-
+Costs change dynamically and non-linearly as you progress through the years. So at 1850 you will mostly see the default low costs but they will gradually increase.
 Maintenance costs will keep increasing even for previously constructed pieces of infrastructure, so make sure to get rid of unused stuff to prevent extra costs piling up!
 
-Inflation parameters are fully configurable for each category of infrastructure (road, rail, water, air), as well as several additional multipliers. Feel free to tailor your money sinks as you see fit!
-
-See tool-tips for every slider for additional information.
+See tooltips for every slider for additional information.
 
 
-Known issues/limitations:
+>> Compatibility with new Advanced Settings (Spring 2022 Update):
+
+- Infrastructure Build Costs should work as you expect and act as additional multiplier on top of Cost setting. But it's recommended to set it to 100% to simplify the math.
+- Infrastructure Maintenance Costs MUST be set at 100% in Advanced Settings, otherwise calculations for extra maintenance costs will be slightly off the expected value.
+
+
+>> Known issues/limitations:
 
 - Build costs of tracks and roads will not be affected by inflation, due to modding API limitations. But maintenance costs will!
 - Red floating numbers will keep showing the original unmodified maintenance costs. Rest assured, additional fees will be deducted from your account behind the scenes. You can monitor this in Finances window.
-- Refund amounts for individual station modules will still be based on original (lower) module price, so you might get much less money back than you expect. This is also modding API limitation. You can either refund the whole station or accept this as yet another money sink.
+- Refund amounts for individual station modules will still be based on original (lower) module price, so you might get much less money back than you expect. This is also modding API limitation.
 - If you add this mod to existing game where you set Maintenance Cost to something other than 100% and built a bunch of infrastructure, the calculations will be slightly off (in higher or lower direction) because of how the mod works.
+
+
+For additional economic challenge, see my tax mod:
+https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762

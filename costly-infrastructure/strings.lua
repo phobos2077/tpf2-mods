@@ -13,7 +13,7 @@ function data()
 	}
 	return {
 		en = {
-			["mod name"] = "Dynamic Infrastructure Cost Scaling",
+			["mod name"] = "Dynamic Infrastructure Costs",
 			["mod desc"] =
 [[
 Dynamically increases maintenance and build costs of various pieces of infrastructure, such as tracks, stations, depots, etc.

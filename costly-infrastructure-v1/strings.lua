@@ -13,7 +13,7 @@ function data()
 	}
 	return {
 		en = {
-			["mod name"] = "Dynamic Infrastructure Cost Scaling",
+			["mod name"] = "Dynamic Infrastructure Costs",
 			["mod desc"] =
 [[
 !! IMPORTANT:

@@ -8,3 +8,6 @@ See preview image for an example of Tax Rate and Net Profits (Profit minus Tax) 
 
 If you want to dig deep into tax rate calculation, see this spreadsheet:
 https://docs.google.com/spreadsheets/d/1xuZJHvulZx9a5tLuafPP34bQjnhrRqkplY_m5_dkbTk/edit?usp=sharing
+
+If you want additional economic challenge, see my infrastructure mod:
+https://steamcommunity.com/sharedfiles/filedetails/?id=2798809680
