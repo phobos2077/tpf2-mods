@@ -35,7 +35,7 @@ local function getVehicleMultCalculator()
 		--setmetatable(env, {__index=_G})
 		local vehicleStats
 		local luaChunk, err = loadfile(VEHICLE_STATS_FILENAME, "bt", {})
-        if type(luaChunk) == "function" then
+		if type(luaChunk) == "function" then
 			local success, result = pcall(luaChunk)
 			if success then
 				vehicleStats = result
@@ -47,13 +47,13 @@ local function getVehicleMultCalculator()
 			log_util.logError("Failed to read vehicle stats from " .. VEHICLE_STATS_FILENAME .. ":\n"..err.."\nWill use vanilla vehicle stats.")
 			vehicleStats = require(FALLBACK_VEHICLE_STATS_MODULE)
 		end
-        vehicleMultCalculator = vehicle_stats.VehicleMultCalculator.new(configData.vehicleMultParams, vehicleStats)
-    end
-    return vehicleMultCalculator
+		vehicleMultCalculator = vehicle_stats.VehicleMultCalculator.new(configData.vehicleMultParams, vehicleStats)
+	end
+	return vehicleMultCalculator
 end
 
 local function modelModifier(fileName, data)
-    -- Modify costs of signals and waypoints based on street/rail multiplier.
+	-- Modify costs of signals and waypoints based on street/rail multiplier.
 	if data.metadata ~= nil and data.metadata.signal ~= nil then
 		local cost = data.metadata.cost
 		if cost ~= nil and cost.price ~= nil then
@@ -158,17 +158,17 @@ local function moduleModifier(fileName, data)
 end
 
 local function changeGameConfigCosts(gameCosts, configData)
-    -- terrain change per m^3
-    gameCosts.terrainRaise = gameCosts.terrainRaise * configData.costMultipliers.terrain
-    gameCosts.terrainLower = gameCosts.terrainLower * configData.costMultipliers.terrain
+	-- terrain change per m^3
+	gameCosts.terrainRaise = gameCosts.terrainRaise * configData.costMultipliers.terrain
+	gameCosts.terrainLower = gameCosts.terrainLower * configData.costMultipliers.terrain
 
-    -- fraction of road/track cost
-    gameCosts.railroadCatenary = gameCosts.railroadCatenary * configData.costMultipliers.trackUpgrades
-    gameCosts.roadTramLane = gameCosts.roadTramLane * configData.costMultipliers.streetUpgrades
-    gameCosts.roadElectricTramLane = gameCosts.roadElectricTramLane * configData.costMultipliers.streetUpgrades
-    gameCosts.roadBusLane = gameCosts.roadBusLane * configData.costMultipliers.streetUpgrades
+	-- fraction of road/track cost
+	gameCosts.railroadCatenary = gameCosts.railroadCatenary * configData.costMultipliers.trackUpgrades
+	gameCosts.roadTramLane = gameCosts.roadTramLane * configData.costMultipliers.streetUpgrades
+	gameCosts.roadElectricTramLane = gameCosts.roadElectricTramLane * configData.costMultipliers.streetUpgrades
+	gameCosts.roadBusLane = gameCosts.roadBusLane * configData.costMultipliers.streetUpgrades
 
-    -- gameCosts.removeField = gameCosts.removeField * configData.costMultipliers.removeField -- original: 200000.0
+	-- gameCosts.removeField = gameCosts.removeField * configData.costMultipliers.removeField -- original: 200000.0
 end
 
 
@@ -177,17 +177,17 @@ local main = {}
 function main.runFn(settings, modParams)
 	configData = config.createFromParams(modParams[getCurrentModId()])
 
-    -- debugPrint({"runFn", modParams, getCurrentModId(), configData})
+	-- debugPrint({"runFn", modParams, getCurrentModId(), configData})
 
-    addModifier("loadModel", modelModifier)
-    addModifier("loadTrack", trackModifier)
-    addModifier("loadBridge", bridgeModifier)
-    addModifier("loadTunnel", tunnelModifier)
-    addModifier("loadStreet", streetModifier)
-    addModifier("loadModule", moduleModifier)
-    addModifier("loadConstruction", constructionModifier)
+	addModifier("loadModel", modelModifier)
+	addModifier("loadTrack", trackModifier)
+	addModifier("loadBridge", bridgeModifier)
+	addModifier("loadTunnel", tunnelModifier)
+	addModifier("loadStreet", streetModifier)
+	addModifier("loadModule", moduleModifier)
+	addModifier("loadConstruction", constructionModifier)
 
-    changeGameConfigCosts(game.config.costs, configData)
+	changeGameConfigCosts(game.config.costs, configData)
 end
 
 function main.postRunFn(settings, params)

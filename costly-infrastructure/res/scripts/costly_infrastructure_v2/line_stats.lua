@@ -22,44 +22,44 @@ local Category = enum.Category
 local line_stats = {}
 
 local function calculateLineStatsByMode()
-    local lineIds = api.engine.system.lineSystem.getLines()
-    local stats = {}
-    for _, id in pairs(lineIds) do
-        local lineInfo = game.interface.getEntity(id)
-        local line = api.engine.getComponent(id, api.type.ComponentType.LINE)
-        for mode, flag in pairs(line.vehicleInfo.transportModes) do
-            if flag and flag == 1 then
-                local stat = stats[mode]
-                if stat == nil then
-                    stats[mode] = {0, 0}
-                    stat = stats[mode]
-                end
-                stat[1] = stat[1] + 1
-                stat[2] = stat[2] + lineInfo.rate
-            end
-        end
-    end
-    for _, stat in pairs(stats) do
-        stat[3] = stat[2]/stat[1]
-    end
-    return stats
+	local lineIds = api.engine.system.lineSystem.getLines()
+	local stats = {}
+	for _, id in pairs(lineIds) do
+		local lineInfo = game.interface.getEntity(id)
+		local line = api.engine.getComponent(id, api.type.ComponentType.LINE)
+		for mode, flag in pairs(line.vehicleInfo.transportModes) do
+			if flag and flag == 1 then
+				local stat = stats[mode]
+				if stat == nil then
+					stats[mode] = {0, 0}
+					stat = stats[mode]
+				end
+				stat[1] = stat[1] + 1
+				stat[2] = stat[2] + lineInfo.rate
+			end
+		end
+	end
+	for _, stat in pairs(stats) do
+		stat[3] = stat[2]/stat[1]
+	end
+	return stats
 end
 
 function line_stats.getTotalLineRatesByCategory()
-    local lineIds = api.engine.system.lineSystem.getLines()
-    local rates = table_util.mapDict(Category, function(cat) return cat, 0 end)
-    for _, id in pairs(lineIds) do
-        local lineInfo = game.interface.getEntity(id)
-        local line = api.engine.getComponent(id, api.type.ComponentType.LINE)
-        if lineInfo ~= nil and line ~= nil then
-            local numStops = #line.stops
-            local cat = entity_info.getCategoryByTransportModes(line.vehicleInfo.transportModes, "Line "..id)
-            if cat then
-                rates[cat] = rates[cat] + lineInfo.rate * numStops
-            end
-        end
-    end
-    return rates
+	local lineIds = api.engine.system.lineSystem.getLines()
+	local rates = table_util.mapDict(Category, function(cat) return cat, 0 end)
+	for _, id in pairs(lineIds) do
+		local lineInfo = game.interface.getEntity(id)
+		local line = api.engine.getComponent(id, api.type.ComponentType.LINE)
+		if lineInfo ~= nil and line ~= nil then
+			local numStops = #line.stops
+			local cat = entity_info.getCategoryByTransportModes(line.vehicleInfo.transportModes, "Line "..id)
+			if cat then
+				rates[cat] = rates[cat] + lineInfo.rate * numStops
+			end
+		end
+	end
+	return rates
 end
 
 return line_stats

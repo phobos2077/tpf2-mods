@@ -4,7 +4,7 @@ local entity_util = {}
 ---@param type string Entity type.
 ---@return table A list of entities.
 function entity_util.findAllEntitiesOfType(type)
-    return game.interface.getEntities({radius = 1e10}, {type = type})
+	return game.interface.getEntities({radius = 1e10}, {type = type})
 end
 
 function entity_util.isPlayerOwned(entityId, playerId)
