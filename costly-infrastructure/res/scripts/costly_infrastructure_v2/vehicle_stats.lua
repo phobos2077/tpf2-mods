@@ -127,7 +127,7 @@ function vehicle_stats.calculateVehicleMultipliers(paramsByCat, statsByCat, year
 			return 1
 		end
 	end)
-	debugPrint({"Calculated vehicle multipliers", result, paramsByCat, year})
+	-- debugPrint({"Calculated vehicle multipliers", result, paramsByCat, year})
 	return result
 end
 

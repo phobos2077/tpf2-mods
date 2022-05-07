@@ -34,21 +34,20 @@ local paramTypes = {
 	cost = function(default) return genSlider(fmt.percent, default or 1, {0.25, 2.0, 0.25}, {2.5, 4.0, 0.5}, {5, 10, 1}) end,
 	--maint = function(default) return genSlider(fmt.percent, default or 1, {0.25, 1.5, 0.25}, {2.0, 4.0, 0.5}) end,
 	vehMult = function(default) return genSlider(fmt.timesX, default or 10, {1, 4, 0.5}, {5, 10, 1}, {12, 30, 2}) end,
-	upgrade = function(default) return genSlider(fmt.timesX, default or 3, 0.5, 4, 0.5) end,
+	upgrade = function(default) return genSlider(fmt.timesX, default or 3, 0.5, 5, 0.5) end,
 	terrain = function(default) return genSlider(fmt.timesX, default or 1, {0.5, 3, 0.5}, {4, 8, 1}) end,
 	--inflation = function(default) return genSlider(fmt.timesX, default or 10, 1, 30, 1) end,
-	year = function (min, max, default)	return genSlider(nil, default, min, max, 10) end,
+	--year = function (min, max, default)	return genSlider(nil, default, min, max, 10) end,
 }
 
 local allParams = {
-	{"mult_street", paramTypes.cost(1.5)},
-	{"mult_rail", paramTypes.cost(1.5)},
-	{"mult_water", paramTypes.cost(1.5)},
+	{"mult_street", paramTypes.cost(1)},
+	{"mult_rail", paramTypes.cost(1)},
+	{"mult_water", paramTypes.cost(1)},
 	{"mult_air", paramTypes.cost(1)},
 	{"mult_bridges_tunnels", paramTypes.terrain(3)},
 	{"mult_terrain", paramTypes.terrain(1)},
-	{"mult_upgrade_track", paramTypes.upgrade()},
-	{"mult_upgrade_street", paramTypes.upgrade()},
+	{"mult_upgrade_edge", paramTypes.upgrade()},
 	{"veh_mult_street", paramTypes.vehMult(10)},
 	{"veh_mult_rail", paramTypes.vehMult(10)},
 	{"veh_mult_water", paramTypes.vehMult(6)},
@@ -73,6 +72,7 @@ local function getDataFromParams(params)
 	---@class ConfigObject : ConfigClass
 	local o = {}
 	--- These are applied to loaded resources via modifiers
+	---@class StaticCostMultipliers
 	o.costMultipliers = {
 		[Category.STREET] = params.mult_street,
 		[Category.RAIL] = params.mult_rail,
@@ -81,8 +81,8 @@ local function getDataFromParams(params)
 		terrain = params.mult_terrain,
 		tunnel = params.mult_bridges_tunnels,
 		bridge = params.mult_bridges_tunnels,
-		trackUpgrades = params.mult_upgrade_track,
-		streetUpgrades = params.mult_upgrade_street
+		trackUpgrades = params.mult_upgrade_edge,
+		streetUpgrades = params.mult_upgrade_edge
 	}
 	--- These are calculated against roster of available vehicles and result is change construction build costs.
 	---@type table<string, VehicleMultParam>
@@ -113,6 +113,8 @@ local function getDataFromParams(params)
 			mult = params.veh_mult_air,
 		},
 	}
+	--- Additional multiplier for bridge and tunnel maintenance. TODO?
+	-- o.bridgeAndTunnelMaintenanceFactor = 1
 	---@type table<string,MaintenanceCostParam>
 	o.maintenanceCostParams = {
 		---@class MaintenanceCostParam

@@ -186,26 +186,31 @@ local function findUniqueTNPath(tnEdges, edge)
 	return tnPath
 end
 
----@return EdgeCostsByCategory
+---@return table<string, EdgeCostData>
 function entity_costs.getTotalEdgeCostsByCategory()
     local playerId = game.interface.getPlayer()
     local allEdges = entity_util.findAllEntitiesOfType("BASE_EDGE")
-	---@class EdgeCostsByCategory
-    local result = {
-		[Category.STREET] = 0,
-		[Category.RAIL] = 0,
-		bridge = 0, -- included in street&rail totals
-		tunnel = 0,
-		len = {
-			[Category.STREET] = 0,
-			[Category.RAIL] = 0,
-			bridge = 0,  -- street and rail include bridge and tunnel lengths
-			tunnel = 0
-		},
-		numObjs = {
-			[Category.STREET] = 0,
-			[Category.RAIL] = 0
+
+	local function newEdgeCosts()
+		---@class EdgeCostData
+		local d = {
+			edge = 0,
+			bridge = 0,
+			tunnel = 0,
+			objects = 0, -- object costs are included in edge costs
+			len = {
+				edge = 0,
+				bridge = 0,  -- edge length include bridge and tunnel lengths
+				tunnel = 0,
+			},
+			numObjs = 0
 		}
+		return d
+	end
+	
+    local result = {
+		[Category.STREET] = newEdgeCosts(),
+		[Category.RAIL] = newEdgeCosts()
 	}
     for _, edgeId in pairs(allEdges) do
         if entity_util.isPlayerOwned(edgeId, playerId) then
@@ -216,31 +221,31 @@ function entity_costs.getTotalEdgeCostsByCategory()
 			local uniqTNPath = findUniqueTNPath(network.edges, edge)
 			local lengthByTN = table_util.sum(uniqTNPath, function(e) return e.geometry.length end)
 			local category = nil
-			local totalEdgeCost = 0
+			local edgeCost = 0
 			if street ~= nil then
 				category = Category.STREET
-				totalEdgeCost = getStreetEdgeCost(street, lengthByTN)
+				edgeCost = getStreetEdgeCost(street, lengthByTN)
 			elseif track ~= nil then
 				category = Category.RAIL
-				totalEdgeCost = getTrackEdgeCost(track, lengthByTN)
+				edgeCost = getTrackEdgeCost(track, lengthByTN)
 			end
 			if category ~= nil then
+				local subResult = result[category]
 				local modelsCost, modelsNum = getModelsOnEdgeCost(edge)
-				totalEdgeCost = totalEdgeCost + modelsCost
-				table_util.incInTable(result.numObjs, category, modelsNum)
+				table_util.incInTable(subResult, "edge", edgeCost + modelsCost)
+				table_util.incInTable(subResult.len, "edge", lengthByTN)
+
+				table_util.incInTable(subResult, "objects", modelsCost)
+				table_util.incInTable(subResult, "numObjs", modelsNum)
 				if edge.type == 1 then
 					local bridgeCost = table_util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
-					totalEdgeCost = totalEdgeCost + bridgeCost
-					table_util.incInTable(result, "bridge", bridgeCost)
-					table_util.incInTable(result.len, "bridge", lengthByTN)
+					table_util.incInTable(subResult, "bridge", bridgeCost)
+					table_util.incInTable(subResult.len, "bridge", lengthByTN)
 				elseif edge.type == 2 then
 					local tunnelCost = getTunnelEdgeCost(edge, lengthByTN)
-					totalEdgeCost = totalEdgeCost + tunnelCost
-					table_util.incInTable(result, "tunnel", tunnelCost)
-					table_util.incInTable(result.len, "tunnel", lengthByTN)
+					table_util.incInTable(subResult, "tunnel", tunnelCost)
+					table_util.incInTable(subResult.len, "tunnel", lengthByTN)
 				end
-				table_util.incInTable(result, category, totalEdgeCost)
-				table_util.incInTable(result.len, category, lengthByTN)
 			end
         end
     end
