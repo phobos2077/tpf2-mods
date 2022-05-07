@@ -72,9 +72,8 @@ function table_util.incInMultiTable(t, ...)
 end
 
 --- Append values from other list into a given list.
----@generic TArg
----@param list TArg[] List to insert values to.
----@param other TArg[]
+---@param list any[] List to insert values to.
+---@param other any[]
 function table_util.iinsert(list, other)
     for _, v in ipairs(other) do
         table.insert(list, v)
@@ -83,9 +82,8 @@ end
 
 
 --- Map table values.
----@generic TKey, TValue, TNewValue
----@param t table<TKey,TValue>
----@param func fun(v: TValue, k: TKey): TNewValue Map function.
+---@param t table
+---@param func fun(v: any, k: any): any Map function.
 function table_util.map(t, func)
     local result = {}
     for k, v in pairs(t) do
@@ -96,9 +94,8 @@ end
 
 
 --- Map table values as dictionary, changing keys.
----@generic TKey, TValue
----@param t table<TKey,TValue>
----@param func fun(v: TValue, k: TKey): any, any
+---@param t table
+---@param func fun(v: any, k: any): any, any
 ---@return table
 function table_util.mapDict(t, func)
     local result = {}
@@ -150,9 +147,8 @@ end
 
 
 --- Sum values from table.
----@generic TKey, TValue
----@param t table<TKey, TValue>
----@param selectorFunc fun(TValue, TKey): number|nil If nil, table values will be summed.
+---@param t table
+---@param selectorFunc fun(v: any, k: any): number|nil If nil, table values will be summed.
 ---@return number
 function table_util.sum(t, selectorFunc)
     if selectorFunc == nil then
@@ -177,10 +173,9 @@ function table_util.max(t, selectorFunc)
 end
 
 --- Find first value in list satisfies predicate.
----@generic TArg
----@param t TArg[] List
----@param selectorFunc fun(v: TArg, i: number): boolean? If nil, first value will be returned.
----@return TArg First value.
+---@param t any[] List
+---@param selectorFunc fun(v: any, i: number): boolean? If nil, first value will be returned.
+---@return any First value.
 function table_util.ifirst(t, selectorFunc)
     if selectorFunc == nil then
         selectorFunc = function () return true end

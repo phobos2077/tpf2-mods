@@ -155,7 +155,9 @@ function data()
 			end
 		end,
 		guiHandleEvent = function(id, name, param)
-			-- debugPrint({"guiHandleEvent", id, name, param})
+			-- if id ~= "constructionBuilder" then
+			-- 	debugPrint({"guiHandleEvent", id, name, param})
+			-- end
 		end,
 		handleEvent = function(src, id, name, param)
 			-- if src ~= "guidesystem.lua" then

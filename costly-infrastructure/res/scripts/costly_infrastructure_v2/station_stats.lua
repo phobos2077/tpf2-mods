@@ -1,4 +1,5 @@
 local table_util = require "costly_infrastructure_v2/lib/table_util"
+local log_util = require "costly_infrastructure_v2/lib/log_util"
 local entity_util = require "costly_infrastructure_v2/lib/entity_util"
 local entity_info = require "costly_infrastructure_v2/entity_info"
 local Category = (require "costly_infrastructure_v2/enum").Category
@@ -132,7 +133,7 @@ function station_stats.getTotalStationCapacity(stationId)
 				return api.engine.getComponent(obj[1], api.type.ComponentType.STATION)
 			end)
 		else
-			print("! ERROR ! Unknown type of station parent entity: " .. tnEntity)
+			log_util.logError("Unknown type of station parent entity: " .. tnEntity)
 		end
 	end
 	if stationsOnEntity ~= nil then

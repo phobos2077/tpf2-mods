@@ -1,5 +1,6 @@
 local game_enum = require "costly_infrastructure_v2/lib/game_enum"
 local table_util = require "costly_infrastructure_v2/lib/table_util"
+local log_util = require "costly_infrastructure_v2/lib/log_util"
 local enum = require "costly_infrastructure_v2/enum"
 
 local entity_info = {}
@@ -89,7 +90,7 @@ function entity_info.getCategoryByTransportModes(transportModes, context)
                 if not cat then
                     cat = potentialCat
                 elseif potentialCat ~= cat then
-                    print("! ERROR !  "..(context or "").." matched more than 1 category: ".. potentialCat ..", ".. cat .. " ---- " .. debug.traceback())
+                    log_util.logError((context or "").." matched more than 1 category: ".. potentialCat ..", ".. cat .. " ---- " .. debug.traceback())
                 end
             end
         end

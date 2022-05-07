@@ -1,6 +1,6 @@
 --[[
 Entity info gathering utilities.
-Version: 1.1
+Version: 1.2
 
 Copyright (c)  2022  phobos2077  (https://steamcommunity.com/id/phobos2077)
 
@@ -15,6 +15,7 @@ portions of the Software.
 
 local table_util = require "costly_infrastructure_v2/lib/table_util"
 local entity_util = require "costly_infrastructure_v2/lib/entity_util"
+local log_util = require "costly_infrastructure_v2/lib/log_util"
 local entity_info = require "costly_infrastructure_v2/entity_info"
 local enum = require "costly_infrastructure_v2/enum"
 
@@ -180,7 +181,7 @@ local function findUniqueTNPath(tnEdges, edge)
 	local pathStart = tnPath[1].conns[1].entity
 	local pathEnd = tnPath[#tnPath].conns[2].entity
 	if not (pathStart == edge.node0 and pathEnd == edge.node1) and not (pathStart == edge.node1 and pathEnd == edge.node0) then
-		print("! ERROR: incorrect path! Start/end is "..pathStart.."/"..pathEnd..", but should be "..edge.node0.."/"..edge.node1)
+		log_util.logError("Incorrect path! Start/end is "..pathStart.."/"..pathEnd..", but should be "..edge.node0.."/"..edge.node1)
 	end
 	return tnPath
 end
