@@ -10,20 +10,12 @@ local Carrier = game_enum.Carrier
 ---@type table<number, string|function>
 local carrierToTypeStr = {
 	[Carrier.ROAD] = function(vehicle)
-		return vehicle.config.allCaps[1] > 0 and _("Bus") or _("Truck")
+		return vehicle.config.allCaps[1] > 0 and _("veh_type_bus") or _("veh_type_truck")
 	end,
-	[Carrier.RAIL] = _("Train"),
-	[Carrier.TRAM] = _("Tram"),
-	[Carrier.AIR] = _("Plane"),
-	[Carrier.WATER] = _("Ship")
-}
-
-local carrierToDefaultName = {
-	[Carrier.ROAD] = _("Road vehicle"),
-	[Carrier.RAIL] = "Train",
-	[Carrier.TRAM] = "Tram",
-	[Carrier.AIR] = "Plane",
-	[Carrier.WATER] = "Ship"
+	[Carrier.RAIL] = _("veh_type_train"),
+	[Carrier.TRAM] = _("veh_type_tram"),
+	[Carrier.AIR] = _("veh_type_plane"),
+	[Carrier.WATER] = _("veh_type_ship")
 }
 
 local function getVehicleTypeStr(vehicle)
@@ -90,7 +82,6 @@ function rename.renameVehicles(vehiclePattern)
 				if lineNameChanged or not lastVehicles[vehId] then
 					local vehicle = api.engine.getComponent(vehId, api.type.ComponentType.TRANSPORT_VEHICLE)
 					local curName = api.engine.getComponent(vehId, api.type.ComponentType.NAME).name
-					local defaultName = carrierToDefaultName[vehicle.carrier]
 
 					-- If vehicle doesn't match naming pattern - means player set a custom name, so keep it.
 					if string.match(curName, "%d+$") then

@@ -26,7 +26,7 @@ local paramTypes = {
 local patternValues = table_util.tableValues(table_util.map(Pattern, function(pattern, key) return {pattern, _("pattern "..key)} end))
 table.sort(patternValues, function(a, b) return a[1] < b[1] end)
 local allParams = {
-	{"enable_vehicles", paramTypes.toggle},
+	--{"enable_vehicles", paramTypes.toggle},
 	{"vehicle_pattern", config_util.paramType(patternValues, 1, nil, "COMBOBOX")}
 }
 
@@ -35,7 +35,7 @@ local function getDataFromParams(params)
 	---@class ConfigObject : ConfigClass
 	local o = {
 		---@type boolean
-		renameVehicles = params.enable_vehicles,
+		renameVehicles = true, -- params.enable_vehicles,
 		---@type number
 		vehiclePattern = params.vehicle_pattern,
 	}
