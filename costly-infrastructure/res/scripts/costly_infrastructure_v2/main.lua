@@ -175,7 +175,7 @@ end
 
 local main = {}
 function main.runFn(settings, modParams)
-    configData = config.createFromParams(modParams[getCurrentModId()])
+	configData = config.createFromParams(modParams[getCurrentModId()])
 
     -- debugPrint({"runFn", modParams, getCurrentModId(), configData})
 
@@ -194,9 +194,11 @@ function main.postRunFn(settings, params)
 	-- debugPrint({"postRunFn", settings, params})
 
 	-- Have to save vehicle info to file, because this is the only way to pass data into a ConstructWithModules function.
+	log_util.log("Calculating vehicle stats for cost scaling...")
 	local info = vehicle_stats.getAllVehicleAvailabilityAndScoresByCategory()
 	local file, err = io.open(VEHICLE_STATS_FILENAME, "w")
 	if file then
+		log_util.log("Writing vehicle stats to "..VEHICLE_STATS_FILENAME)
 		local infoStr = "return " .. serialize_util.serialize(info)
 		file:write(infoStr)
 		file:flush()

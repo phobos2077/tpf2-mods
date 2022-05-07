@@ -35,15 +35,13 @@ local function isAvailable(year, yearFrom, yearTo)
 end
 
 local function getAllTransportVehiclesFromRep()
-	local id = 0
-	local modelRes = api.res.modelRep.get(id)
+	local numModels = #api.res.modelRep.getAll()
 	local result = {}
-	while modelRes ~= nil do
+	for id = 0, numModels - 1, 1 do
+		local modelRes = api.res.modelRep.get(id)
 		if modelRes.metadata and modelRes.metadata.transportVehicle then
 			table.insert(result, modelRes.metadata)
 		end
-		id = id + 1
-		modelRes = api.res.modelRep.get(id)
 	end
 	return result
 end
