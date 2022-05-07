@@ -194,7 +194,7 @@ function Calculator.new(paramsByCat, vehicleStatsByCat)
 	o.multsYear = nil
 	setmetatable(o, vehicle_stats.VehicleMultCalculator)
 
-	debugPrint({"VehicleMultCalculator.new", o})
+	-- debugPrint({"VehicleMultCalculator.new", o})
 	return o
 end
 

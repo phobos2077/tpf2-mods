@@ -9,7 +9,7 @@ function data()
 		en = function(type)	return "This sets the upper limit for "..type.." Infrastructure Dynamic Build cost based on vehicle ratings." end
 	}
 	local maintMultTip = {
-		en = function(type)	return "Additional multiplier for "..type.." Infrastructure Maintenance cost." end
+		en = function(type, note)	return "Additional multiplier for "..type.." Infrastructure Maintenance cost."..(note and ("\n"..note) or "") end
 	}
 	return {
 		en = {
@@ -76,7 +76,7 @@ But it is affected by Base Cost Multipliers and is scaled independently from bui
 			["param mult_bridges_tunnels"] = "Cost: Bridges and tunnels",
 			["param mult_bridges_tunnels tip"] = "Flat modifier for cost of tunnel and bridge construction.\nNote that maintenance for bridges and tunnels after they are built will count towards either Road or Rail infrastructure.",
 			["param mult_terrain"] = "Cost: Terrain",
-			["param mult_terrain tip"] = "Flat modifier for terrain modification costs. Not affected by inflation.",
+			["param mult_terrain tip"] = "Terrain modification cost multiplier.",
 			["param mult_upgrade_track"] = "Upgrades: Tracks",
 			["param mult_upgrade_track tip"] = upgradeTip.en("track"),
 			["param mult_upgrade_street"] = "Upgrades: Roads",
@@ -92,7 +92,7 @@ But it is affected by Base Cost Multipliers and is scaled independently from bui
 			["param veh_mult_air tip"] = vehicleMultTip.en("Air"),
 
 			["param maint_mult_street"] = "Maintenance: Road",
-			["param maint_mult_street tip"] = maintMultTip.en("Road"),
+			["param maint_mult_street tip"] = maintMultTip.en("Road", "Road usage tends to be much higher than Rail. Increase this if you tend to build a lot of big road stations."),
 			["param maint_mult_rail"] = "Maintenance: Railroad",
 			["param maint_mult_rail tip"] = maintMultTip.en("Railroad"),
 			["param maint_mult_water"] = "Maintenance: Water",

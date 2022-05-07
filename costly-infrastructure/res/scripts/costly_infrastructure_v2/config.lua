@@ -33,7 +33,7 @@ local fmt = config_util.fmt
 local paramTypes = {
 	cost = function(default) return genSlider(fmt.percent, default or 1, {0.25, 2.0, 0.25}, {2.5, 4.0, 0.5}, {5, 10, 1}) end,
 	--maint = function(default) return genSlider(fmt.percent, default or 1, {0.25, 1.5, 0.25}, {2.0, 4.0, 0.5}) end,
-	vehMult = function(default) return genSlider(fmt.timesX, default or 10, {1, 4, 0.5}, {5, 10, 1}, {12, 20, 2}) end,
+	vehMult = function(default) return genSlider(fmt.timesX, default or 10, {1, 4, 0.5}, {5, 10, 1}, {12, 30, 2}) end,
 	upgrade = function(default) return genSlider(fmt.timesX, default or 3, 0.5, 4, 0.5) end,
 	terrain = function(default) return genSlider(fmt.timesX, default or 1, {0.5, 3, 0.5}, {4, 8, 1}) end,
 	--inflation = function(default) return genSlider(fmt.timesX, default or 10, 1, 30, 1) end,
@@ -55,7 +55,7 @@ local allParams = {
 	{"veh_mult_air", paramTypes.vehMult(3)},
 	{"maint_mult_street", paramTypes.cost(1)},
 	{"maint_mult_rail", paramTypes.cost(3)},
-	{"maint_mult_water", paramTypes.cost(2)},
+	{"maint_mult_water", paramTypes.cost(3)},
 	{"maint_mult_air", paramTypes.cost(2)},
 --[[
 	{"inflation_year_start", paramTypes.year(1850, 1950, 1880)},
