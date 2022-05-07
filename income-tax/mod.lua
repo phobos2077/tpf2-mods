@@ -17,7 +17,7 @@ local config = require "income_tax/config"
 function data()
 	return {
 		info = {
-			minorVersion = 2,
+			minorVersion = 3,
 			severityAdd = "NONE",
 			severityRemove = "NONE",
 			name = _("mod name"),
