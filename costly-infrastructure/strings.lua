@@ -16,6 +16,7 @@ function data()
 !! IMPORTANT:
 - Requires Spring 2022 Update (beta), see note below
 
+Ever get bothered by the fact that costs of infrastructure become so low compared to the rising costs of vehicles? This is the mod for you!
 
 Dynamically increases maintenance and build costs of various pieces of infrastructure, such as tracks, stations, depots, etc.
 [list]
@@ -23,6 +24,13 @@ Dynamically increases maintenance and build costs of various pieces of infrastru
 [*]Maintenance costs change based on intensity of use of stations.
 [*]Additionally, static cost multipliers are available for every type of infrastructure.
 [/list]
+
+This is aimed to achieve 2 goals:
+[list]
+[*]Make your late game a bit more interesting by challenging you to keep making your lines as profitable as possible.
+[*]Add to immersion and make maintenance costs actually tied to gameplay.
+[/list]
+
 
 The mod is structured into 3 parts.
 
@@ -115,6 +123,120 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_air tip"] = maintMultTip.en("Air"),
 		},
 
+		de = {
+			["mod name"] = "Dynamische Infrastrukturkosten v2",
+			["mod desc"] =
+[[
+!! WICHTIG:
+- Erfordert das Spring 2022 Update (Beta), siehe Hinweis unten
+
+Haben Sie sich jemals darüber geärgert, dass die Infrastrukturkosten im Vergleich zu den steigenden Fahrzeugkosten so niedrig werden? Dies ist der Mod für Sie!
+
+Erhöht dynamisch die Wartungs- und Baukosten verschiedener Infrastrukturteile wie Gleise, Bahnhöfe, Depots usw.
+[list]
+[*]Die Baukosten steigen basierend auf den im laufenden Jahr verfügbaren Fahrzeugen.
+[*]Die Instandhaltungskosten ändern sich je nach Nutzungsintensität der Stationen.
+[*]Zusätzlich sind statische Kostenmultiplikatoren für jede Art von Infrastruktur verfügbar.
+[/list]
+
+Damit sollen 2 Ziele erreicht werden:
+[list]
+[*]Machen Sie Ihr spätes Spiel etwas interessanter, indem Sie Sie herausfordern, Ihre Linien so profitabel wie möglich zu gestalten.
+[*]Erhöhen Sie das Eintauchen und machen Sie die Instandhaltungskosten tatsächlich an das Gameplay gebunden.
+[/list]
+
+
+Der Mod ist in 3 Teile gegliedert.
+
+
+[h3]Teil 1 - Grundkostenmultiplikatoren[/h3]
+Diese skalieren direkt die Bau- und Instandhaltungskosten aller Infrastrukturkategorien.
+Diese Multiplikatoren sind statisch, einmal konfiguriert, ändern sie sich während des Spiels nicht. Aber sie multiplizieren die Effekte dynamischer Multiplikatoren.
+
+
+[h3]Teil 2 - Dynamische Build-Kosten[/h3]
+Die Baukosten aller Stationen und Depots werden basierend auf der aktuellen Fahrzeugleistung skaliert. Diese Bewertung errechnet sich wie folgt:
+[list]
+[*]Alle Fahrzeuge, die basierend auf dem aktuellen Jahr zum Kauf angeboten werden, werden genommen und nach Kategorien (Straße, Schiene, Wasser und Luft) getrennt.
+[*]Für jedes Fahrzeug wird eine Nennleistung berechnet. Bei Lokomotiven ist dies die Motorleistung. Für alle anderen Typen ist es maximale Geschwindigkeit mal Kapazität.
+[*]Der höchste Punktewert wird in der Formel verwendet, wobei 1 einigen der schwächsten Fahrzeuge entspricht und Build Cost Max einigen der stärksten.
+Diese Formel ist nicht linear, wodurch die Kostenkurve selbst etwas linearer wird.
+[/list]
+
+Wenn Sie den Grundkostenmultiplikator für die Infrastrukturkategorie erhöhen, wird das Ergebnis der dynamischen Skalierung multipliziert.
+Wenn Sie beispielsweise Straßengrundkosten auf 200 % und Straßenbaukosten max. auf 5x setzen, beträgt die Obergrenze des endgültigen Preises 10x.
+
+
+[h3]Teil 3 - Nutzungsbasierte Infrastrukturkosten[/h3]
+Die Instandhaltungskosten werden unabhängig von den Baukosten skaliert und verwenden stattdessen eine andere Formel:
+[list]
+[*]Die Gesamtkapazität aller Ihrer Stationen für eine bestimmte Kategorie wird berechnet.
+[*]Gesamtlinienpreise werden als Summe des Tarifwerts (wie in der Benutzeroberfläche angezeigt) multipliziert mit der Anzahl der Stopps berechnet.
+[*]Endgültiger Multiplikator = (Gesamtraten / Gesamtkapazität) * mult, wobei mult ein konfigurierbarer Wert pro Kategorie ist.
+[/list]
+Der Basiswert für die Instandhaltungskosten beträgt 10 % der Anschaffungskosten, genau wie beim Vanilla-Spiel.
+Aber es wird von Grundkostenmultiplikatoren beeinflusst und unabhängig von den Baukosten skaliert.
+
+
+[h3]Kompatibilität mit neuen erweiterten Einstellungen (Update vom Frühjahr 2022)[/h3]
+[list]
+[*]Infrastrukturaufbaukosten sollten wie erwartet funktionieren und als zusätzlicher Multiplikator zusätzlich zur Kosteneinstellung wirken. Es wird jedoch empfohlen, den Wert auf 100 % zu setzen, um die Berechnung zu vereinfachen.
+[*]Infrastruktur-Wartungskosten MÜSSEN in den erweiterten Einstellungen auf 100 % gesetzt werden, andernfalls werden die Berechnungen für zusätzliche Instandhaltungskosten leicht vom erwarteten Wert abweichen.
+[/list]
+
+
+[h3]Bekannte Probleme/Einschränkungen[/h3]
+[list]
+[*]Die Baukosten von Gleisen und Straßen ändern sich nicht dynamisch (nur vom Basismultiplikator betroffen). Aber Instandhaltungskosten werden!
+[*]Rote schwebende Zahlen zeigen weiterhin die ursprünglichen unveränderten Instandhaltungskosten an. Seien Sie versichert, zusätzliche Gebühren werden hinter den Kulissen von Ihrem Konto abgezogen. Sie können dies im Finanzfenster überwachen.
+[*]Erstattungsbeträge für einzelne Stationsmodule basieren weiterhin auf dem ursprünglichen (niedrigeren) Modulpreis, sodass Sie möglicherweise viel weniger Geld zurückerhalten, als Sie erwarten. Dies ist auch eine Modding-API-Einschränkung.
+[*]Wenn du diesen Mod zu einem bestehenden Spiel hinzufügst, in dem du die Instandhaltungskosten auf etwas anderes als 100 % setzt und eine Menge Infrastruktur aufbaust, werden die Berechnungen aufgrund der Funktionsweise des Mods leicht abweichen (in höherer oder niedrigerer Richtung).
+[/list]
+
+
+[h3]Andere Economy-Mods, die Sie vielleicht ausprobieren möchten[/h3]
+Originalversion des Mods, basierend auf der "Inflation"-Kurve:
+https://steamcommunity.com/sharedfiles/filedetails/?id=2798809680
+
+Progressive Einkommens-/Gewinnsteuer:
+https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
+]],
+
+			["param mult_street"] = "Basiskosten: Straße",
+			["param mult_street tip"] = "",
+			["param mult_rail"] = "Basiskosten: Eisenbahn",
+			["param mult_rail tip"] = "",
+			["param mult_water"] = "Basiskosten: Wasser",
+			["param mult_water tip"] = "",
+			["param mult_air"] = "Basiskosten: Luft",
+			["param mult_air tip"] = "",
+
+			["param mult_bridges_tunnels"] = "Kosten: Brücken und Tunnel",
+			["param mult_bridges_tunnels tip"] = "Pauschaler Modifikator für die Kosten des Tunnel- und Brückenbaus.\nBeeinflusst nicht die Instandhaltungskosten der Brücke. Stattdessen werden Road/Rail-Multiplikatoren verwendet.",
+			["param mult_terrain"] = "Kosten: Gelände",
+			["param mult_terrain tip"] = "Kostenmultiplikator für Geländemodifikationen.",
+			["param mult_upgrade_edge"] = "Upgrades: Gleise und Straßen",
+			["param mult_upgrade_edge tip"] = "Dies ist relativ zu den Kosten für Strecke/Straße selbst.\nZ. B. Wenn Sie die Kosten auf 200 % und die Upgrades auf 200 % setzen, erhöht sich der endgültige Upgrade-Preis um 400 %.",
+
+			["param veh_mult_street"] = "Baukosten max: Straße",
+			["param veh_mult_street tip"] = "",
+			["param veh_mult_rail"] = "Baukosten max: Eisenbahn",
+			["param veh_mult_rail tip"] = "",
+			["param veh_mult_water"] = "Baukosten max: Wasser",
+			["param veh_mult_water tip"] = "",
+			["param veh_mult_air"] = "Baukosten max: Luft",
+			["param veh_mult_air tip"] = "",
+
+			["param maint_mult_street"] = "Instandhaltung: Straße",
+			["param maint_mult_street tip"] = "Die Straßennutzung ist tendenziell viel höher als die Schienennutzung. Erhöhen Sie dies, wenn Sie dazu neigen, viele große Straßenstationen zu bauen.",
+			["param maint_mult_rail"] = "Instandhaltung: Eisenbahn",
+			["param maint_mult_rail tip"] = "",
+			["param maint_mult_water"] = "Instandhaltung: Wasser",
+			["param maint_mult_water tip"] = "",
+			["param maint_mult_air"] = "Instandhaltung: Luft",
+			["param maint_mult_air tip"] = "",
+		},
+
 		ru ={
 			["mod name"] = "Динамические затраты на инфраструктуру v2",
 			["mod desc"] =
@@ -122,6 +244,7 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 !! ВАЖНО:
 - Требует Spring 2022 Update (бета).
 
+Вас когда-нибудь напрягало что стоимость инфраструктуры в поздней игре становится смехотворной в сравнении с ценами на транспорт? Тогда этот мод - для вас!
 
 Динамически повышает стоимость строительство и содержания различной инфраструктуры, такой как пути, станции, депо и т.д.
 [list]
@@ -129,6 +252,13 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 [*]Стоимость содержания меняется в зависимости от интенсивности нагрузки на станции.
 [*]Дополнительно, статические множители стоимости доступны для каждой категории инфраструктуры.
 [/list]
+
+Это служит следующим целям:
+[list]
+[*]Сделать позднюю игру чуть интереснее, добавив необходимость стараться продолжать повышать прибыльность ваших линий.
+[*]Усилить погружение. Теперь стоимость инфраструктуры зависит от состояния игры!
+[/list]
+
 
 Мод разделён на 3 части.
 

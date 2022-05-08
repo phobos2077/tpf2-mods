@@ -14,7 +14,7 @@ You can configure tax parameters as you like. For example, setting Minimum Tax R
 until you reach a certain level of sustainable profits.
 
 If you want additional economic challenge, see my infrastructure mod:
-https://steamcommunity.com/sharedfiles/filedetails/?id=2798809680
+https://steamcommunity.com/sharedfiles/filedetails/?id=2805165537
 ]],
 
 			["param rate_min"] = "Tax Rate: Minimum",
@@ -45,7 +45,7 @@ Sie können die Steuerparameter nach Belieben konfigurieren. Wenn Sie beispielsw
 bis Sie ein bestimmtes Niveau nachhaltiger Gewinne erreichen.
 
 Wenn Sie eine zusätzliche wirtschaftliche Herausforderung wünschen, sehen Sie sich meinen Infrastruktur-Mod an:
-https://steamcommunity.com/sharedfiles/filedetails/?id=2798809680
+https://steamcommunity.com/sharedfiles/filedetails/?id=2805165537
 ]],
 			["param rate_min"] = "Steuersatz: Minimum",
 			["param rate_min tip"] = "Der minimale Steuersatz (Steuerbetrag als Prozentsatz Ihres Betriebsgewinns) auf der niedrigsten Gewinnebene.\nFalls über dem Maximum festgelegt, wird ein Maximum als konstanter Satz verwendet.",
@@ -75,7 +75,7 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2798809680
 пока вы не достигните устойчивых уровней дохода.
 
 Если хотите дополнительно разнообразий экономическую составляющую игры, рекомендую мой мод стоимости инфраструктуры:
-https://steamcommunity.com/sharedfiles/filedetails/?id=2798809680
+https://steamcommunity.com/sharedfiles/filedetails/?id=2805165537
 ]],
 
 			["param rate_min"] = "Ставка налога: Минимальная",

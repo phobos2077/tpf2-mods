@@ -176,14 +176,6 @@ function data()
 			-- if src ~= "guidesystem.lua" then
 			-- 	debugPrint({"handleEvent", src, id, name, param})
 			-- end
-
-			if id == "debug" and type(debug[name]) == "function" then
-				if type(param) ~= "table" then
-					debug[name](param)
-				else
-					debug[name](table.unpack(param))
-				end
-			end
 		end
 	}
 end
