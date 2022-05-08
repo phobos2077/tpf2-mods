@@ -35,6 +35,7 @@ local function getDataFromParams(params)
 	---@class ConfigObject : ConfigClass
 	local o = {
 		---@type boolean
+		renameStations = false, -- TODO
 		renameVehicles = true, -- params.enable_vehicles,
 		---@type number
 		vehiclePattern = params.vehicle_pattern,

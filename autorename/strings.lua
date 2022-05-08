@@ -13,13 +13,6 @@ Renaming happens on game load and then about 4 times a month.
 
 			["pattern LineTypeNumber"] = "<Line> <Type> <Number>",
 			["pattern LineNumber"] = "<Line> <Number>",
-
-			["veh_type_truck"] = "Truck",
-			["veh_type_bus"] = "Bus",
-			["veh_type_train"] = "Train",
-			["veh_type_tram"] = "Tram",
-			["veh_type_plane"] = "Plane",
-			["veh_type_ship"] = "Ship",
 		},
 		de = {
 			["mod name"] = "Automatische Umbenennung von Fahrzeugen",
@@ -35,12 +28,14 @@ Die Umbenennung erfolgt beim Laden des Spiels und dann etwa 4 Mal im Monat.
 			["pattern LineTypeNumber"] = "<Linie> <Typ> <Anzahl>",
 			["pattern LineNumber"] = "<Linie> <Anzahl>",
 
-			["veh_type_truck"] = "Lastwagen",
-			["veh_type_bus"] = "Bus",
-			["veh_type_train"] = "Zug",
-			["veh_type_tram"] = "Straßenbahn",
-			["veh_type_plane"] = "Flugzeug",
-			["veh_type_ship"] = "Schiff",
+			["Truck"] = "Lastwagen",
+			["Bus"] = "Bus",
+			["Road vehicle"] = "Strassenfahrzeug",
+			["Train"] = "Zug",
+			["Tram"] = "Straßenbahn",
+			["Plane"] = "Flugzeug",
+			["Ship"] = "Schiff",
+			["Line"] = "Linie",
 		},
 		ru = {
 			["mod name"] = "Авто-переименование: транспорт",
@@ -56,12 +51,14 @@ Die Umbenennung erfolgt beim Laden des Spiels und dann etwa 4 Mal im Monat.
 			["pattern LineTypeNumber"] = "<Линия> <Тип> <Номер>",
 			["pattern LineNumber"] = "<Линия> <Номер>",
 
-			["veh_type_truck"] = "Грузовик",
-			["veh_type_bus"] = "Автобус",
-			["veh_type_train"] = "Поезд",
-			["veh_type_tram"] = "Трамвай",
-			["veh_type_plane"] = "Самолёт",
-			["veh_type_ship"] = "Корабль",
+			["Truck"] = "Грузовик",
+			["Bus"] = "Автобус",
+			["Road vehicle"] = "Дорожный транспорт",
+			["Train"] = "Поезд",
+			["Tram"] = "Трамвай",
+			["Plane"] = "Самолёт",
+			["Ship"] = "Корабль",
+			["Line"] = "Линия",
 		},
 	}
 end

@@ -34,20 +34,28 @@ function data()
 			local configData = config.get()
 
 			if nextRenameAttempt == nil or currentTime > nextRenameAttempt then
+				if configData.renameStations then
+					rename.renameAllIndustryStations()
+				end
 				if configData.renameVehicles then
-					rename.renameVehicles(configData.vehiclePattern)
+					rename.renameAllVehicles(configData.vehiclePattern)
 				end
 				nextRenameAttempt = currentTime + RENAME_INTERVAL
 			end
 		end,
 		guiHandleEvent = function(id, name, param)
-			-- if id ~= "constructionBuilder" then
-			-- 	debugPrint({"guiHandleEvent", id, name, param})
+			-- if id == "constructionBuilder" and name == "builder.apply" then
+			-- 	local result = param.result
+			-- 	if type(result) == "table" or type(result) == "userdata" then
+			-- 		for _, constrId in ipairs(result) do
+			-- 			rename.renameStation(constrId)
+			-- 		end
+			-- 	end
 			-- end
 		end,
 		handleEvent = function(src, id, name, param)
 			-- if src ~= "guidesystem.lua" then
-			-- 	debugPrint({"handleEvent", src, id, name, param})
+			-- 	debugPrint({"handleEvent", src, id, name, param, type(param)})
 			-- end
 		end
 	}

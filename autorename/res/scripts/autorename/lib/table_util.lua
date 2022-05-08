@@ -117,9 +117,10 @@ function table_util.reduce(t, func, result)
 	return result
 end
 
---- Groups values from list into a new dictionary using key selector function.
+--- Groups values from table into a new dictionary using key selector function.
 ---@param t table
----@param func function Key selector (value, key).
+---@param func fun(v: any, k: any): any Key selector (value, key).
+---@return table<any, table>
 function table_util.groupBy(t, func)
 	local result = {}
 	for k, v in pairs(t) do
@@ -128,6 +129,22 @@ function table_util.groupBy(t, func)
 			result[key] = {}
 		end
 		result[key][k] = v
+	end
+	return result
+end
+
+--- Groups values from list into a new dictionary using key selector function.
+---@param t any[]
+---@param func fun(v: any, i: number): any Key selector (value, index).
+---@return table<any, any[]>
+function table_util.igroupBy(t, func)
+	local result = {}
+	for i, v in ipairs(t) do
+		local key = func(v, i)
+		if not result[key] then
+			result[key] = {}
+		end
+		table.insert(result[key], v)
 	end
 	return result
 end
