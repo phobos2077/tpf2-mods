@@ -170,6 +170,18 @@ function config_util.getActualParams(rawParams, allParams)
 	return actualParams
 end
 
+function config_util.checkboxParam(default)
+	return config_util.paramType({{false, "OFF"}, {true, "ON"}}, default and 2 or 1, nil, "CHECKBOX")
+end
+
+---Combo box
+---@param values {[1]=any,[2]=string}[]
+---@param default number?
+---@return ParamTypeData
+function config_util.comboBoxParam(values, default)
+	return config_util.paramType(values, default or 1, nil, "COMBOBOX")
+end
+
 ---Generate param info for mod settings.
 ---@param key string
 ---@param paramData ParamTypeData

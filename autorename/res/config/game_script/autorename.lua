@@ -24,7 +24,6 @@ local RENAME_INTERVAL = 15
 --- VARIABLES
 local nextRenameAttempt
 
-
 function data()
 	return {
 		save = function() end,
@@ -34,11 +33,11 @@ function data()
 			local configData = config.get()
 
 			if nextRenameAttempt == nil or currentTime > nextRenameAttempt then
-				if configData.renameStations then
-					rename.renameAllIndustryStations()
-				end
+				-- if configData.renameStations then
+				-- 	rename.renameStations()
+				-- end
 				if configData.renameVehicles then
-					rename.renameAllVehicles(configData.vehiclePattern)
+					rename.renameAllVehicles(configData)
 				end
 				nextRenameAttempt = currentTime + RENAME_INTERVAL
 			end

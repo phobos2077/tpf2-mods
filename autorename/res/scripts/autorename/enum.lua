@@ -1,6 +1,6 @@
 return {
-	Pattern = {
+	NumberMergeMode = {
 		LineTypeNumber = 1,
 		LineNumber = 2
-	}
+	},
 }

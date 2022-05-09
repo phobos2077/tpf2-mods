@@ -14,20 +14,43 @@ portions of the Software.
 
 local table_util = require "autorename/lib/table_util"
 local config_util = require "autorename/lib/config_util"
-local Pattern = require("autorename/enum").Pattern
+local Pattern = require("autorename/enum").NumberMergeMode
 
 ---@class ConfigClass
 local config = {}
 
 local paramTypes = {
-	toggle = config_util.paramType({{false, "Disable"}, {true, "Enable"}}, 2, nil, "CHECKBOX")
 }
 
 local patternValues = table_util.tableValues(table_util.map(Pattern, function(pattern, key) return {pattern, _("pattern "..key)} end))
 table.sort(patternValues, function(a, b) return a[1] < b[1] end)
+
+local mergeModeValues = {
+	{false, _("value disable")},
+	{" ", "1 2"},
+	{"", "12"},
+	{"-", "1-2"},
+	{" - ", "1 - 2"},
+	{"/", "1/2"},
+	{" / ", "1 / 2"},
+}
+
+local numDigitsValues = {
+	{false, _("value auto")},
+	{1, "1"},
+	{2, "01"},
+	{3, "001"},
+	{4, "0001"},
+}
+
 local allParams = {
 	--{"enable_vehicles", paramTypes.toggle},
-	{"vehicle_pattern", config_util.paramType(patternValues, 1, nil, "COMBOBOX")}
+	{"vehicle_pattern", config_util.comboBoxParam(patternValues)},
+	{"vehicle_num_digits", config_util.comboBoxParam(numDigitsValues)},
+	{"skip_brackets_square", config_util.checkboxParam(false)},
+	{"skip_brackets_curly", config_util.checkboxParam(false)},
+	{"skip_brackets_angled", config_util.checkboxParam(false)},
+	{"number_merge_mode", config_util.comboBoxParam(mergeModeValues)},
 }
 
 ---@param params number[]
@@ -37,8 +60,20 @@ local function getDataFromParams(params)
 		---@type boolean
 		renameStations = false, -- TODO
 		renameVehicles = true, -- params.enable_vehicles,
+		---@class NameFilteringParams
+		nameFiltering = {
+			skipBrackets = {
+				square = params.skip_brackets_square,
+				curly = params.skip_brackets_curly,
+				angled = params.skip_brackets_angled,
+			}
+		},
 		---@type number
 		vehiclePattern = params.vehicle_pattern,
+		---@type number
+		vehicleNumDigits = params.vehicle_num_digits,
+		---@type string|false
+		numberMergeStr = params.number_merge_mode,
 	}
 	return o
 end

@@ -3,16 +3,17 @@ local table_util = require "autorename/lib/table_util"
 local log_util = require "autorename/lib/log_util"
 local entity_util = require "autorename/lib/entity_util"
 
-local Pattern = (require "autorename/enum").Pattern
+local Pattern = (require "autorename/enum").NumberMergeMode
 
 local rename = {}
 
 local Carrier = game_enum.Carrier
+local LOG_TAG = "Auto-Rename"
 
 ---@type table<number, string|function>
 local carrierToTypeStr = {
 	[Carrier.ROAD] = function(vehicle)
-		return vehicle.config.allCaps[1] > 0 and _("veh_type_bus") or _("veh_type_truck")
+		return vehicle.config.allCaps[1] > 0 and _("Bus") or _("Truck")
 	end,
 	[Carrier.RAIL] = _("Train"),
 	[Carrier.TRAM] = _("Tram"),
@@ -20,6 +21,8 @@ local carrierToTypeStr = {
 	[Carrier.WATER] = _("Ship")
 }
 
+---@param vehicle userdata
+---@return string
 local function getVehicleTypeStr(vehicle)
 	local typeStr = carrierToTypeStr[vehicle.carrier]
 	if type(typeStr) == "function" then
@@ -39,93 +42,151 @@ local function commandCallback(cmd, success)
 	end
 end
 
-local function getBaseNameByPattern(vehiclePattern, lineName, vehicle)
-	if vehiclePattern == Pattern.LineTypeNumber then
+---@param sourceName string
+---@param filterParams NameFilteringParams
+---@return string
+local function filterSourceName(sourceName, filterParams)
+	-- Remove stuff in various types of brackets.
+	local skipBrackets = filterParams.skipBrackets
+	if skipBrackets.square then
+		sourceName = sourceName:gsub("%s?%b[]", "")
+	end
+	if skipBrackets.curly then
+		sourceName = sourceName:gsub("%s?%b{}", "")
+	end
+	if skipBrackets.angled then
+		sourceName = sourceName:gsub("%s?%b<>", "")
+	end
+	return sourceName
+end
+
+local BASE_NUM_PATTERN = "%s+#?(%d+)$"
+
+---@param lineName string
+---@param vehicle userdata
+---@param configData ConfigObject
+---@return string name
+local function getVehicleBaseName(lineName, vehicle, configData)
+	local pattern = configData.vehiclePattern
+	lineName = filterSourceName(lineName, configData.nameFiltering)
+	local postfix = " "
+	if configData.numberMergeStr then
+		local lineNum = lineName:match(BASE_NUM_PATTERN)
+		if lineNum then
+			lineName = lineName:gsub(BASE_NUM_PATTERN, "")
+			postfix = " "..lineNum..configData.numberMergeStr
+		end	
+	end
+	local baseName
+	if pattern == Pattern.LineTypeNumber then
 		local typeStr = getVehicleTypeStr(vehicle)
-		return lineName.." "..typeStr
-	elseif vehiclePattern == Pattern.LineNumber then
-		return lineName
+		baseName = lineName.." "..typeStr..postfix
+	elseif pattern == Pattern.LineNumber then
+		baseName = lineName..postfix
 	else
 		log_util.logError("Unsupported vehicle pattern: " .. vehiclePattern)
-		return lineName
+		baseName = lineName..postfix
 	end
+	return baseName, postfix
+end
+
+---@param baseName string
+---@param num number
+---@param numDigits number
+---@return string
+local function getVehicleNewName(baseName, num, numDigits)
+	-- local digits = configData.vehicleNumDigits
+	return string.format("%s%0"..numDigits.."d", baseName, num)
 end
 
 -- Remember last names of lines to save on unnecessary processing.
 ---@type table<number, {name: string, vehs: table<number, boolean>, maxIdPerName: table<string, number>}>
-local renameCache = {
+local lineVehiclesCache = {
 }
 
-local function renameAllVehiclesOnLine(vehiclePattern, lineId, lineName)
-	local cachedLineInfo = renameCache[lineId] or {}
-	renameCache[lineId] = cachedLineInfo
-	local lineNameChanged = lineName ~= cachedLineInfo.name
-	local lastVehicles = cachedLineInfo.vehs or {}
-	cachedLineInfo.name = lineName
-	cachedLineInfo.vehs = {}
-	cachedLineInfo.maxIdPerName = cachedLineInfo.maxIdPerName or {}
+local function getNumDigits(num)
+	return num > 0 and math.floor(math.log(num, 10) + 1) or 1
+end
 
+---Rename vehicle on given line.
+---@param configData ConfigObject
+---@param lineId number
+---@param lineName string
+---@return integer
+local function renameAllVehiclesOnLine(configData, lineId, lineName)
+	local cachedLineInfo = lineVehiclesCache[lineId] or {}
+	lineVehiclesCache[lineId] = cachedLineInfo
+	
 	local vehIds = api.engine.system.transportVehicleSystem.getLineVehicles(lineId)
-	local maxIdPerName = cachedLineInfo.maxIdPerName
+	local vehiclesChanged = not cachedLineInfo.vehIdsSet or cachedLineInfo.vehNum ~= #vehIds
+	if not vehiclesChanged then
+		for i, vehId in pairs(vehIds) do
+			if not cachedLineInfo.vehIdsSet[vehId] then
+				vehiclesChanged = true
+				break
+			end
+		end
+	end
+	-- Skip renaming if no vehicles have changed, for performance.
+	if lineName == cachedLineInfo.name and not vehiclesChanged then
+		return 0
+	end
+
 	local vehiclesPerName = {}
 	local numRenamed = 0
 
-	-- First pass - calculate max numbers and prepare list of vehicles to rename.
-	for _, vehId in ipairs(vehIds) do
-		cachedLineInfo.vehs[vehId] = true
-		-- Skip vehicle processing if we know for sure we processed it already with the same line name.
-		if lineNameChanged or not lastVehicles[vehId] then
-			local vehicle = api.engine.getComponent(vehId, api.type.ComponentType.TRANSPORT_VEHICLE)
-			local curName = api.engine.getComponent(vehId, api.type.ComponentType.NAME).name
+	cachedLineInfo.name = lineName
+	cachedLineInfo.vehNum = #vehIds
+	cachedLineInfo.vehIdsSet = {}
 
-			-- If vehicle doesn't match naming pattern - means player set a custom name, so keep it.
-			if string.match(curName, "%d+$") then
-				local baseName = getBaseNameByPattern(vehiclePattern, lineName, vehicle)
-				local num = string.match(curName, "^"..escape(baseName).." (%d+)")
-				num = num and tonumber(num)
-				-- debugPrint({num = num == nil and "nil" or num, baseName = baseName, maxId = maxIdPerName[baseName] or "nil"})
-				if not num then
-					-- Not matched the expected pattern, need to rename it.
-					if vehiclesPerName[baseName] == nil then
-						vehiclesPerName[baseName] = {}
-					end
-					table.insert(vehiclesPerName[baseName], vehId)
-				elseif maxIdPerName[baseName] == nil or num > maxIdPerName[baseName] then
-					-- Vehicle already has proper name, don't rename but check for max number.
-					maxIdPerName[baseName] = num
-				end
-			end
+	local sortedVehIds = table_util.tableValues(vehIds)
+	table.sort(sortedVehIds)
+	
+	-- First pass - prepare list of vehicles to rename per base name.
+	for i, vehId in ipairs(sortedVehIds) do
+		cachedLineInfo.vehIdsSet[vehId] = true
+
+		local curName = api.engine.getComponent(vehId, api.type.ComponentType.NAME).name
+
+		-- If vehicle doesn't match naming pattern - means player set a custom name, so keep it.
+		if string.match(curName, "%d+$") then
+			local vehicle = api.engine.getComponent(vehId, api.type.ComponentType.TRANSPORT_VEHICLE)
+			local baseName = getVehicleBaseName(lineName, vehicle, configData)
+			vehiclesPerName[baseName] = vehiclesPerName[baseName] or {}
+			table.insert(vehiclesPerName[baseName], vehId)
 		end
 	end
 	-- Second pass - rename.
 	for baseName, idsToRename in pairs(vehiclesPerName) do
-		for _, vehId in ipairs(idsToRename) do
-			local maxId = (maxIdPerName[baseName] or 0) + 1
-			local newName = baseName .. " " .. maxId
-			maxIdPerName[baseName] = maxId
-
+		local numDigits = configData.vehicleNumDigits or getNumDigits(#idsToRename)
+		for i, vehId in ipairs(idsToRename) do
+			local newName = getVehicleNewName(baseName, i, numDigits)
 			api.cmd.sendCommand(api.cmd.make.setName(vehId, newName), commandCallback)
-			numRenamed = numRenamed + 1
 		end
+		numRenamed = numRenamed + #idsToRename
 	end
 	return numRenamed
 end
 
-function rename.renameAllVehicles(vehiclePattern)
+---Rename vehicle
+---@param configData ConfigObject
+function rename.renameAllVehicles(configData)
 	local timer = os.clock()
 	local lineIds = api.engine.system.lineSystem.getLinesForPlayer(game.interface.getPlayer())
 	local numRenamed = 0
-	for _, lineId in pairs(lineIds) do
+	for k, lineId in pairs(lineIds) do
+		---@type string
 		local lineName = api.engine.getComponent(lineId, api.type.ComponentType.NAME).name
 
 		-- If line name follows default pattern, means player doesn't care about it so don't rename vehicles here.
-		if not string.find(lineName, "^"..escape(_("Line")).." %d+$") then
-			numRenamed = numRenamed + renameAllVehiclesOnLine(vehiclePattern, lineId, lineName)
+		-- Also skip line if it has an exclamation mark in the end.
+		if not lineName:find("^"..escape(_("Line")).." %d+$") and not lineName:find("%!%s-$") then
+			numRenamed = numRenamed + renameAllVehiclesOnLine(configData, lineId, lineName)
 		end
 	end
 	
 	local elapsed = os.clock() - timer
-	log_util.log(string.format("Renamed %d vehicles across %d lines in %.0f ms.", numRenamed, #lineIds, elapsed * 1000))
+	log_util.log(string.format("Renamed %d vehicles across %d lines in %.0f ms.", numRenamed, #lineIds, elapsed * 1000), LOG_TAG)
 end
 
 
@@ -165,7 +226,8 @@ local function getStationsConnectedToIndustry(industryConstrId)
 end
 
 
-function rename.renameAllIndustryStations()
+-- TODO:
+function rename.renameStations()
 	local timer = os.clock()
 	local playerId = game.interface.getPlayer()
 	local numRenamed = 0
@@ -207,7 +269,7 @@ function rename.renameAllIndustryStations()
 	end
 
 	local elapsed = os.clock() - timer
-	log_util.log(string.format("Renamed %d stations in %.0f ms.", numRenamed, elapsed * 1000))
+	log_util.log(string.format("Renamed %d stations in %.0f ms.", numRenamed, elapsed * 1000), LOG_TAG)
 end
 
 

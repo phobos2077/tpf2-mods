@@ -117,6 +117,17 @@ function table_util.reduce(t, func, result)
 	return result
 end
 
+--- Creates a copy of the table.
+---@param t table
+---@return table
+function table_util.copy(t)
+	local result = {}
+	for k, v in pairs(t) do
+		result[k] = v
+	end
+	return result
+end
+
 --- Groups values from table into a new dictionary using key selector function.
 ---@param t table
 ---@param func fun(v: any, k: any): any Key selector (value, key).
