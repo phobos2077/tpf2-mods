@@ -36,8 +36,8 @@ function data()
 				-- if configData.renameStations then
 				-- 	rename.renameStations()
 				-- end
-				if configData.renameVehicles then
-					rename.renameAllVehicles(configData)
+				if configData.vehicles.enable then
+					rename.renameAllVehicles(configData.vehicles)
 				end
 				nextRenameAttempt = currentTime + RENAME_INTERVAL
 			end

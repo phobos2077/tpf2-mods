@@ -9,14 +9,17 @@ Renaming happens on game load and then about 4 times a month.
 Add ! (exclamation mark) to the end of line name to exclude it from renaming.
 ]],
 
-			["param vehicle_pattern"] = "Vehicle Naming",
-			["param vehicle_pattern tip"] = "Which pattern to use for auto-naming the vehicles.",
+			["param vehicle_add_type"] = "Add Vehicle Type",
+			["param vehicle_add_type tip"] = "Adds vehicle type to it's name.",
 
-			["param vehicle_num_digits"] = "Number format (vehicles)",
+			["param vehicle_num_separator"] = "Number Separator",
+			["param vehicle_num_separator tip"] = "",
+
+			["param vehicle_num_digits"] = "Number format",
 			["param vehicle_num_digits tip"] = "Allows to set minimum number of digits for vehicle numbers.",
 
-			["param number_merge_mode"] = "Line number merge mode",
-			["param number_merge_mode tip"] = "If enabled, will detect lines with numbers in their name and merge it with vehicle number according to selected format.",
+			["param vehicle_move_line_num"] = "Move line number",
+			["param vehicle_move_line_num tip"] = "If enabled, will detect lines with number in their name and move it before vehicle number.",
 
 			["param skip_brackets_square"] = "Skip text in []",
 			["param skip_brackets_square tip"] = "",
@@ -44,14 +47,17 @@ Die Umbenennung erfolgt beim Laden des Spiels und dann etwa 4 Mal im Monat.
 Hinzufügen ! (Ausrufezeichen) an das Ende des Zeilennamens, um ihn von der Umbenennung auszuschließen.
 ]],
 
-			["param vehicle_pattern"] = "Benennung von Fahrzeugen",
-			["param vehicle_pattern tip"] = "",
+			["param vehicle_add_type"] = "Fahrzeugtyp hinzufügen",
+			["param vehicle_add_type tip"] = "Fügt seinem Namen einen Fahrzeugtyp hinzu.",
 
-			["param vehicle_num_digits"] = "Zahlenformat (Fahrzeuge)",
+			["param vehicle_num_separator"] = "Zahlentrennzeichen",
+			["param vehicle_num_separator tip"] = "",
+
+			["param vehicle_num_digits"] = "Zahlenformat",
 			["param vehicle_num_digits tip"] = "Ermöglicht die Festlegung einer Mindestanzahl von Ziffern für Fahrzeugnummern.",
 
-			["param number_merge_mode"] = "Zeilennummern-Zusammenführungsmodus",
-			["param number_merge_mode tip"] = "Wenn aktiviert, werden Linien mit Nummern im Namen erkannt und diese Nummer zusammen mit der Fahrzeugnummer verschoben.",
+			["param vehicle_move_line_num"] = "Zeilennummer verschieben",
+			["param vehicle_move_line_num tip"] = "Wenn aktiviert, werden Linien mit Nummern im Namen erkannt und vor die Fahrzeugnummer verschoben.",
 
 			["param skip_brackets_square"] = "Text in [] überspringen",
 			["param skip_brackets_square tip"] = "",
@@ -61,9 +67,6 @@ Hinzufügen ! (Ausrufezeichen) an das Ende des Zeilennamens, um ihn von der Umbe
 
 			["param skip_brackets_angled"] = "Text in <> überspringen",
 			["param skip_brackets_angled tip"] = "",
-
-			["pattern LineTypeNumber"] = "<Linie> <Typ> <Anzahl>",
-			["pattern LineNumber"] = "<Linie> <Anzahl>",
 
 			["Truck"] = "Lastwagen",
 			["Bus"] = "Bus",
@@ -87,14 +90,17 @@ Hinzufügen ! (Ausrufezeichen) an das Ende des Zeilennamens, um ihn von der Umbe
 Добавьте ! (восклицательный знак) в конце имени линии, чтобы исключить её из переименования.
 ]],
 
-			["param vehicle_pattern"] = "Шаблон названия для транспорта",
-			["param vehicle_pattern tip"] = "",
+			["param vehicle_add_type"] = "Добавлять тип транспорта",
+			["param vehicle_add_type tip"] = "Добавлять тип транспорта к его названию.",
 
-			["param vehicle_num_digits"] = "Формат номера (транспорт)",
+			["param vehicle_num_separator"] = "Разделитель номера",
+			["param vehicle_num_separator tip"] = "",
+
+			["param vehicle_num_digits"] = "Формат номера",
 			["param vehicle_num_digits tip"] = "Позволяет задать минимальное количество цифр в номере транспорта.",
 
-			["param number_merge_mode"] = "Режим слияния номера линии",
-			["param number_merge_mode tip"] = "Если включено, найдет номер линии в названии и переместит вместе с номером транспорта по заданному формату.",
+			["param vehicle_move_line_num"] = "Перемещать номер линии",
+			["param vehicle_move_line_num tip"] = "Если включить, будет находить номер линии в её названии и переносить перед номером ТС.",
 
 			["param skip_brackets_square"] = "Пропускать текст в []",
 			["param skip_brackets_square tip"] = "",
@@ -104,9 +110,6 @@ Hinzufügen ! (Ausrufezeichen) an das Ende des Zeilennamens, um ihn von der Umbe
 
 			["param skip_brackets_angled"] = "Пропускать текст в <>",
 			["param skip_brackets_angled tip"] = "",
-
-			["pattern LineTypeNumber"] = "<Линия> <Тип> <Номер>",
-			["pattern LineNumber"] = "<Линия> <Номер>",
 
 			["Truck"] = "Грузовик",
 			["Bus"] = "Автобус",

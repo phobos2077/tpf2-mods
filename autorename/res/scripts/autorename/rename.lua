@@ -3,7 +3,7 @@ local table_util = require "autorename/lib/table_util"
 local log_util = require "autorename/lib/log_util"
 local entity_util = require "autorename/lib/entity_util"
 
-local Pattern = (require "autorename/enum").NumberMergeMode
+local Pattern = (require "autorename/enum").VehiclePattern
 
 local rename = {}
 
@@ -64,30 +64,21 @@ local BASE_NUM_PATTERN = "%s+#?(%d+)$"
 
 ---@param lineName string
 ---@param vehicle userdata
----@param configData ConfigObject
+---@param renameConfig VehicleRenameConfig
 ---@return string name
-local function getVehicleBaseName(lineName, vehicle, configData)
-	local pattern = configData.vehiclePattern
-	lineName = filterSourceName(lineName, configData.nameFiltering)
-	local postfix = " "
-	if configData.numberMergeStr then
-		local lineNum = lineName:match(BASE_NUM_PATTERN)
-		if lineNum then
-			lineName = lineName:gsub(BASE_NUM_PATTERN, "")
-			postfix = " "..lineNum..configData.numberMergeStr
-		end	
+local function getVehicleBaseName(lineName, vehicle, renameConfig)
+	local lineNumber
+	local baseName = lineName
+	if renameConfig.moveLineNumber then
+		lineNumber = baseName:match(BASE_NUM_PATTERN)
+		if lineNumber then
+			baseName = baseName:gsub(BASE_NUM_PATTERN, "")
+		end
 	end
-	local baseName
-	if pattern == Pattern.LineTypeNumber then
-		local typeStr = getVehicleTypeStr(vehicle)
-		baseName = lineName.." "..typeStr..postfix
-	elseif pattern == Pattern.LineNumber then
-		baseName = lineName..postfix
-	else
-		log_util.logError("Unsupported vehicle pattern: " .. vehiclePattern)
-		baseName = lineName..postfix
+	if renameConfig.addType then
+		baseName = baseName.." "..getVehicleTypeStr(vehicle)
 	end
-	return baseName, postfix
+	return baseName .. renameConfig.numberSeparator .. (lineNumber or "")
 end
 
 ---@param baseName string
@@ -109,11 +100,11 @@ local function getNumDigits(num)
 end
 
 ---Rename vehicle on given line.
----@param configData ConfigObject
+---@param renameConfig VehicleRenameConfig
 ---@param lineId number
 ---@param lineName string
 ---@return integer
-local function renameAllVehiclesOnLine(configData, lineId, lineName)
+local function renameAllVehiclesOnLine(renameConfig, lineId, lineName)
 	local cachedLineInfo = lineVehiclesCache[lineId] or {}
 	lineVehiclesCache[lineId] = cachedLineInfo
 	
@@ -151,14 +142,14 @@ local function renameAllVehiclesOnLine(configData, lineId, lineName)
 		-- If vehicle doesn't match naming pattern - means player set a custom name, so keep it.
 		if string.match(curName, "%d+$") then
 			local vehicle = api.engine.getComponent(vehId, api.type.ComponentType.TRANSPORT_VEHICLE)
-			local baseName = getVehicleBaseName(lineName, vehicle, configData)
+			local baseName = getVehicleBaseName(lineName, vehicle, renameConfig)
 			vehiclesPerName[baseName] = vehiclesPerName[baseName] or {}
 			table.insert(vehiclesPerName[baseName], vehId)
 		end
 	end
 	-- Second pass - rename.
 	for baseName, idsToRename in pairs(vehiclesPerName) do
-		local numDigits = configData.vehicleNumDigits or getNumDigits(#idsToRename)
+		local numDigits = renameConfig.vehicleNumDigits or getNumDigits(#idsToRename)
 		for i, vehId in ipairs(idsToRename) do
 			local newName = getVehicleNewName(baseName, i, numDigits)
 			api.cmd.sendCommand(api.cmd.make.setName(vehId, newName), commandCallback)
@@ -169,8 +160,8 @@ local function renameAllVehiclesOnLine(configData, lineId, lineName)
 end
 
 ---Rename vehicle
----@param configData ConfigObject
-function rename.renameAllVehicles(configData)
+---@param renameConfig VehicleRenameConfig
+function rename.renameAllVehicles(renameConfig)
 	local timer = os.clock()
 	local lineIds = api.engine.system.lineSystem.getLinesForPlayer(game.interface.getPlayer())
 	local numRenamed = 0
@@ -181,7 +172,7 @@ function rename.renameAllVehicles(configData)
 		-- If line name follows default pattern, means player doesn't care about it so don't rename vehicles here.
 		-- Also skip line if it has an exclamation mark in the end.
 		if not lineName:find("^"..escape(_("Line")).." %d+$") and not lineName:find("%!%s-$") then
-			numRenamed = numRenamed + renameAllVehiclesOnLine(configData, lineId, lineName)
+			numRenamed = numRenamed + renameAllVehiclesOnLine(renameConfig, lineId, lineName)
 		end
 	end
 	

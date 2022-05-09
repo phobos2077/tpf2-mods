@@ -1,5 +1,5 @@
 return {
-	NumberMergeMode = {
+	VehiclePattern = {
 		LineTypeNumber = 1,
 		LineNumber = 2
 	},
