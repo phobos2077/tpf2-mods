@@ -106,7 +106,9 @@ end
 
 
 local function constructionUpdate(params, result, category)
-	local vehicleMult = getVehicleMultCalculator():getMultiplier(category, params.year)
+	local vehicleMult = params.year
+		and getVehicleMultCalculator():getMultiplier(category, params.year)
+		or 1
 	local finalCostMultiplier = configData.costMultipliers[category] * vehicleMult
 	local baseCost = result.cost or 0
 	if result.cost ~= nil then

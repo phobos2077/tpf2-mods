@@ -10,12 +10,9 @@ function data()
 	}
 	return {
 		en = {
-			["mod name"] = "Dynamic Infrastructure Costs v2",
+			["mod name"] = "Dynamic Infrastructure Costs",
 			["mod desc"] =
 [[
-!! IMPORTANT:
-- Requires Spring 2022 Update (beta), see note below
-
 Ever get bothered by the fact that costs of infrastructure become so low compared to the rising costs of vehicles? This is the mod for you!
 
 Dynamically increases maintenance and build costs of various pieces of infrastructure, such as tracks, stations, depots, etc.
@@ -127,9 +124,6 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["mod name"] = "Dynamische Infrastrukturkosten v2",
 			["mod desc"] =
 [[
-!! WICHTIG:
-- Erfordert das Spring 2022 Update (Beta), siehe Hinweis unten
-
 Haben Sie sich jemals darüber geärgert, dass die Infrastrukturkosten im Vergleich zu den steigenden Fahrzeugkosten so niedrig werden? Dies ist der Mod für Sie!
 
 Erhöht dynamisch die Wartungs- und Baukosten verschiedener Infrastrukturteile wie Gleise, Bahnhöfe, Depots usw.
@@ -241,9 +235,6 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["mod name"] = "Динамические затраты на инфраструктуру v2",
 			["mod desc"] =
 [[
-!! ВАЖНО:
-- Требует Spring 2022 Update (бета).
-
 Вас когда-нибудь напрягало что стоимость инфраструктуры в поздней игре становится смехотворной в сравнении с ценами на транспорт? Тогда этот мод - для вас!
 
 Динамически повышает стоимость строительство и содержания различной инфраструктуры, такой как пути, станции, депо и т.д.

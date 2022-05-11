@@ -14,7 +14,6 @@ portions of the Software.
 
 local table_util = require "autorename/lib/table_util"
 local config_util = require "autorename/lib/config_util"
-local Pattern = require("autorename/enum").VehiclePattern
 
 ---@class ConfigClass
 local config = {}
@@ -29,6 +28,7 @@ local separatorValues = {
 	{" - ", "XXX - 111"},
 	{"/", "XXX/111"},
 	{" / ", "XXX / 111"},
+	{" #", "XXX #111"},
 }
 
 local numDigitsValues = {

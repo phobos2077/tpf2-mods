@@ -3,8 +3,6 @@ local table_util = require "autorename/lib/table_util"
 local log_util = require "autorename/lib/log_util"
 local entity_util = require "autorename/lib/entity_util"
 
-local Pattern = (require "autorename/enum").VehiclePattern
-
 local rename = {}
 
 local Carrier = game_enum.Carrier
@@ -68,7 +66,7 @@ local BASE_NUM_PATTERN = "%s+#?(%d+)$"
 ---@return string name
 local function getVehicleBaseName(lineName, vehicle, renameConfig)
 	local lineNumber
-	local baseName = lineName
+	local baseName = filterSourceName(lineName, renameConfig.nameFiltering)
 	if renameConfig.moveLineNumber then
 		lineNumber = baseName:match(BASE_NUM_PATTERN)
 		if lineNumber then

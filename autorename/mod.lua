@@ -19,7 +19,7 @@ local config = require "autorename/config"
 function data()
 	return {
 		info = {
-			minorVersion = 1,
+			minorVersion = 2,
 			severityAdd = "NONE",
 			severityRemove = "NONE",
 			name = _("mod name"),
