@@ -15,14 +15,14 @@ portions of the Software.
 local table_util = require "autorename/lib/table_util"
 
 local config = require "autorename/config"
-local rename = require "autorename/rename"
+local process_vehicles = require "autorename/process_vehicles"
 
 --- CONSTANTS
-local RENAME_INTERVAL = 15
+local PROCESS_INTERVAL = 15
 
 
 --- VARIABLES
-local nextRenameAttempt
+local nextProcessing
 
 function data()
 	return {
@@ -32,14 +32,14 @@ function data()
 			local currentTime = game.interface.getGameTime().time
 			local configData = config.get()
 
-			if nextRenameAttempt == nil or currentTime > nextRenameAttempt then
+			if nextProcessing == nil or currentTime > nextProcessing then
 				-- if configData.renameStations then
 				-- 	rename.renameStations()
 				-- end
 				if configData.vehicles.enable then
-					rename.renameAllVehicles(configData.vehicles)
+					process_vehicles.processVehiclesOnLines(configData.vehicles)
 				end
-				nextRenameAttempt = currentTime + RENAME_INTERVAL
+				nextProcessing = currentTime + PROCESS_INTERVAL
 			end
 		end,
 		guiHandleEvent = function(id, name, param)

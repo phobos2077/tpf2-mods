@@ -40,7 +40,7 @@ local numDigitsValues = {
 }
 
 local allParams = {
-	--{"enable_vehicles", paramTypes.toggle},
+	{"vehicle_rename", config_util.checkboxParam(true)},
 	{"vehicle_add_type", config_util.checkboxParam(true)},
 	{"vehicle_num_separator", config_util.comboBoxParam(separatorValues)},
 	{"vehicle_num_digits", config_util.comboBoxParam(numDigitsValues, 2)},
@@ -48,6 +48,7 @@ local allParams = {
 	{"skip_brackets_square", config_util.checkboxParam(false)},
 	{"skip_brackets_curly", config_util.checkboxParam(false)},
 	{"skip_brackets_angled", config_util.checkboxParam(false)},
+	{"vehicle_recolor", config_util.checkboxParam(false)},
 }
 
 ---@param params number[]
@@ -56,9 +57,9 @@ local function getDataFromParams(params)
 	local o = {
 		---@type boolean
 		renameStations = false, -- TODO
-		---@class VehicleRenameConfig
+		---@class VehicleProcessConfig
 		vehicles = {
-			enable = true, -- params.enable_vehicles,
+			rename = params.vehicle_rename,
 			---@type boolean
 			addType = params.vehicle_add_type,
 			---@type string
@@ -77,7 +78,8 @@ local function getDataFromParams(params)
 					---@type boolean
 					angled = params.skip_brackets_angled,
 				}
-			}
+			},
+			recolor = params.vehicle_recolor
 		}
 	}
 	return o
