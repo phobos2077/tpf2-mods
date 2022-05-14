@@ -51,27 +51,30 @@ local function modelModifier(fileName, data)
 	if data.metadata.transportVehicle and not data.metadata.car then
 		local avail = data.metadata.availability
 		local category = getVehicleCategory(data.metadata)
-		if category and avail and avail.yearFrom and avail.yearFrom > 0 and avail.yearTo and avail.yearTo > avail.yearFrom then
-			local mult = actualParams["mult_"..category]
-			local lifetime = avail.yearTo - avail.yearFrom
-			lifetime = math.ceil(lifetime * mult)
-			avail.yearTo = avail.yearFrom + lifetime
+		if category and avail and avail.yearTo and avail.yearTo > 0 then
+			local addYears = actualParams["add_years_"..category]
+			if addYears then
+				avail.yearTo = avail.yearTo + addYears
+			else
+				avail.yearTo = 0
+			end
 		end
 	end
 	return data
 end
 
-local multParamType = config_util.paramType({0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0}, 3, config_util.fmt.percent, "SLIDER")
+local addYearValues = config_util.linearValues(0, {0, 45, 5}, {50, 100, 10})
+table.insert(addYearValues, {false, "∞"})
+local addYearsParamType = config_util.paramType(addYearValues, 1, nil, "SLIDER")
 
 local allParams = {
-	{"mult_road", multParamType},
-	{"mult_tram", multParamType},
-	{"mult_loco", multParamType},
-	{"mult_wagon", multParamType},
-	{"mult_ship", multParamType},
-	{"mult_plane", multParamType},
+	{"add_years_road", addYearsParamType},
+	{"add_years_tram", addYearsParamType},
+	{"add_years_loco", addYearsParamType},
+	{"add_years_wagon", addYearsParamType},
+	{"add_years_ship", addYearsParamType},
+	{"add_years_plane", addYearsParamType},
 }
-
 
 
 function data()

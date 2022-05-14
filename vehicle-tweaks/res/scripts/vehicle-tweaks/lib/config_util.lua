@@ -88,7 +88,7 @@ end
 ---@param defaultVal number?
 ---@param ... number[]|number
 ---@return number[],number
-local function linearValues(defaultVal, ...)
+function config_util.linearValues(defaultVal, ...)
 	local values = {}
 	local defaultIdx = nil
 	local ranges = {...}
@@ -116,7 +116,7 @@ end
 ---@param ... number[]|number List of ranges {{min, max, step}, ...} or single range as arguments min, max, step
 ---@return ParamTypeData
 function config_util.genParamLinear(labelFunc, uiType, defaultVal, ...)
-	local values, defaultIdx = linearValues(defaultVal, ...)
+	local values, defaultIdx = config_util.linearValues(defaultVal, ...)
 	return config_util.paramType(values, defaultIdx, labelFunc, uiType)
 end
 
