@@ -29,20 +29,20 @@ local Carrier = {
 
 local function getVehicleCategory(metadata)
 	local carrier = metadata.transportVehicle.carrier
-	if carrier == "ROAD" then
+	if carrier == "ROAD" or metadata.roadVehicle then
 		return "road"
 	elseif carrier == "TRAM" then
 		return "tram"
-	elseif carrier == "RAIL" then
+	elseif carrier == "RAIL" or metadata.railVehicle then
 		return metadata.railVehicle and metadata.railVehicle.engines and #metadata.railVehicle.engines > 0
 			and "loco"
 			or "wagon"
-	elseif carrier == "AIR" then
+	elseif carrier == "AIR" or metadata.airVehicle then
 		return "plane"
-	elseif carrier == "WATER" then
+	elseif carrier == "WATER" or metadata.waterVehicle then
 		return "ship"
 	else
-		print("! ERROR ! Unknown vehicle carrier: " .. carrier)
+		print("! ERROR ! Unknown vehicle carrier: " .. (carrier or "nil"))
 		return nil
 	end
 end
@@ -99,7 +99,7 @@ function data()
 		runFn = function(settings, modParams)
 			actualParams = config_util.getActualParams(modParams[getCurrentModId()], allParams)
 		
-			debugPrint({"vehicletweaks runFn", modParams, getCurrentModId(), actualParams})
+			-- debugPrint({"vehicletweaks runFn", modParams, getCurrentModId(), actualParams})
 		
 			addModifier("loadModel", modelModifier)
 		end
