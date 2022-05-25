@@ -62,6 +62,7 @@ local function getWorldSize()
 end
 
 local clusterZoneColors = {
+	-- TODO: colors to be more visible on terrain
 	[IndustryCategory.Other] = {1,1,1,1},
 	[IndustryCategory.Coal] = {0.2,0.2,0.2,1},
 	[IndustryCategory.Iron] = {0.5,0.25,0,1},
@@ -72,6 +73,31 @@ local clusterZoneColors = {
 }
 
 local clusterRadiuses = { 200, 400, 800, 1600, 3200 }
+
+local MAX_PLACEMENT_ATTEMPTS = 10
+
+---@param constr userdata
+---@return ClusterData
+local function getClusterDataFromConstruction(constr)
+	local category = constr.params.clusterCategory + 1
+	local radius = constr.params.clusterRadius and clusterRadiuses[constr.params.clusterRadius+1] or 400
+	local vec4 = constr.transf:cols(3)
+	---@type Vec3f
+	local position = api.type.Vec3f.new(vec4[1], vec4[2], vec4[3])
+	---@class ClusterData
+	local data = {pos = position, cat = category, radius = radius, area = 2*math.pi*radius}
+	return data
+end
+
+---@param clusterData ClusterData
+local function setClusterZone(id, clusterData)
+	local zoneData = clusterData and {
+		polygon = zoneutil.makeCircleZone(clusterData.pos, clusterData.radius),
+		draw = true,
+		drawColor = clusterZoneColors[clusterData.cat] or {1,0,1,1}
+	} or nil
+	game.interface.setZone("industry_cluster_"..id, zoneData)
+end
 
 local function placeIndustryProposal(fileName, name, pos)
 	local newCon = api.type.SimpleProposal.ConstructionEntity.new()
@@ -98,10 +124,12 @@ local function placeIndustryProposal(fileName, name, pos)
 end
 
 local function validateIndustryPlacement(fileName, pos)
+	-- TODO: need to also prevent placement on very uneven terrain, such as on the mountain
 	local proposal, context = placeIndustryProposal(fileName, "test", pos)
 	local proposalData = api.engine.util.proposal.makeProposalData(proposal, context)
-	debugPrint({"validateIndustryPlacement", fileName, pos, proposalData.errorState})
-	return not (proposalData.errorState.critical or false)
+	local errState = proposalData.errorState
+	debugPrint({"validateIndustryPlacement", fileName, pos, errState})
+	return not (errState.critical or false) and not (errState.messages and #errState.messages > 0 or false)
 end
 
 local function createIndustry(fileName, name, pos, onComplete)
@@ -131,25 +159,14 @@ local function processIndustries()
 	for _, id in pairs(ents) do
 		local constr = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)
 		if constr and constr.fileName:find("^industry") then
+			-- knownConstructions[id] = true
 			if constr.fileName == "industry/industry_cluster.con" then
-				knownConstructions[id] = true
-				-- debugPrint({id, constr.params, game.interface.setZone, constr.transf:cols(0)})
-				-- api.cmd.sendCommand(api.cmd.make.sendScriptEvent("test_script","__cluster__","set_zone",id))
-
-				--game.interface.setZone("industry_cluster_"..id, {polygon = zoneutil.makeCircleZone()})
 				if constr.params and constr.params.clusterCategory then
-					local category = constr.params.clusterCategory + 1
-					local radius = constr.params.clusterRadius and clusterRadiuses[constr.params.clusterRadius+1] or 400
-					local vec4 = constr.transf:cols(3)
-					local position = api.type.Vec3f.new(vec4[1], vec4[2], vec4[3])
-					local clusterList = clustersByCategory[category] or {}
-					clustersByCategory[category] = clusterList
-					clusterList[#clusterList+1] = {pos = position, cat = category, radius = radius, area = 2*math.pi*radius}
-					game.interface.setZone("industry_cluster_"..id, {
-						polygon = zoneutil.makeCircleZone(position, radius),
-						draw = true,
-						drawColor = clusterZoneColors[category] or {1,0,1,1}
-					})
+					local clusterData = getClusterDataFromConstruction(constr)
+					local clusterList = clustersByCategory[clusterData.cat] or {}
+					clustersByCategory[clusterData.cat] = clusterList
+					clusterList[#clusterList+1] = clusterData
+					setClusterZone(id, clusterData)
 				end
 			elseif industryData[constr.fileName] then
 				numByType[constr.fileName] = (numByType[constr.fileName] or 0) + 1
@@ -183,6 +200,7 @@ local function processIndustries()
 		end
 	end
 
+	-- If selected, spawn industry in random position.
 	if selectedFileName then
 		local resData = getIndustryRes(selectedFileName)
 		local industryOutput = industryData[selectedFileName][2]
@@ -191,19 +209,20 @@ local function processIndustries()
 		local clusterList = clustersByCategory[category]
 		if clusterList then
 			local totalArea = table_util.sum(clusterList, function(cluster) return cluster.area end)
-			local target = math.random() * totalArea
-			local targetCluster
-			local sum = 0
-			for _, cluster in ipairs(clusterList) do
-				sum = sum + cluster.area
-				if sum > target then
-					targetCluster = cluster
-					break
-				end
-			end
 			local validPosition
 			local lastPos
-			for i = 1, 5, 1 do
+			for i = 1, MAX_PLACEMENT_ATTEMPTS, 1 do
+				local target = math.random() * totalArea
+				local targetCluster
+				local sum = 0
+				for _, cluster in ipairs(clusterList) do
+					sum = sum + cluster.area
+					if sum > target then
+						targetCluster = cluster
+						break
+					end
+				end
+			
 				local pos = randomPointInCircle(targetCluster.pos, targetCluster.radius)
 				lastPos = api.type.Vec3f.new(pos[1], pos[2], api.engine.terrain.getBaseHeightAt(api.type.Vec2f.new(pos[1], pos[2])))
 				if validateIndustryPlacement(selectedFileName, lastPos) then
@@ -236,14 +255,33 @@ function data()
 			-- api.res.getBaseConfig().costs.terrainRaise = math.random(4,40)
 			local curTime = game.interface.getGameTime().time
 			if not nextUpdate or curTime >= nextUpdate then
+				math.randomseed(math.floor(curTime))
 				processIndustries()
 				nextUpdate = curTime + 10
+
+				setClusterZone("tmp", nil)
+
+				-- TODO: hide properly even in paused game
+				game.interface.setZone("industry_cluster_tmp", nil)
 			end
 		end,
 		guiHandleEvent = function(id, name, param)
-			-- if id ~= "constructionBuilder" then
-			-- 	debugPrint({"guiHandleEvent", id, name, param})
-			-- end
+			if (id == "constructionBuilder" or id == "bulldozer") and name ~= "builder.proposalCreate" then
+				debugPrint({"guiHandleEvent", id, name, param})
+			end
+			if id == "constructionBuilder" then
+				local con = param.proposal and param.proposal.toAdd and param.proposal.toAdd[1]
+				if con and con.fileName == "industry/industry_cluster.con" then
+					if name == "builder.proposalCreate" then
+						setClusterZone("tmp", getClusterDataFromConstruction(con))
+					elseif name == "builder.apply" then
+						setClusterZone(param.result[1], getClusterDataFromConstruction(con))
+					end
+				end
+			elseif id == "bulldozer" and #param.proposal.toRemove > 0 then
+				-- TODO: check if ID is cluster to reduce on API calls?
+				setClusterZone(param.proposal.toRemove[1], nil)
+			end
 		end,
 		handleEvent = function(src, id, name, param)
 			-- if src ~= "guidesystem.lua" then

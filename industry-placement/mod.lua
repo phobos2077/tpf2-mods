@@ -51,8 +51,15 @@ function data()
 		runFn = function (settings, modParams)
 			--local params = modParams[getCurrentModId()]
 			-- game.config.sandboxButton = true
-			
 			-- addModifier("loadConstruction", constructionMod)
+
+			game.config.locations.industry.maxNumberPerArea = 0
+
+			-- Enabling spawnIndustries seems to result in game showing popup messages for industries spawned by script!
+			game.config.economy.industryDevelopment.spawnIndustries = true
+
+			-- But setting exponent to 0 hopefully prevents it from actually spawning anything on it's own.
+			game.config.economy.industryDevelopment.spawnProbabilityExponent = 0
 		end,
 		postRunFn = function()
 		end
