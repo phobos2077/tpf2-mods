@@ -1,0 +1,102 @@
+local constructionutil = require "constructionutil"
+local paramsutil = require "paramsutil"
+local vec3 = require "vec3"
+local transf = require "transf"
+
+function data()
+
+return {
+	type = "INDUSTRY",
+	order = 706,
+	description = {
+		name = _("Industry Cluster"),
+		description = "",
+	},
+	soundConfig = {                                                               -- change sound set here.
+		soundSet = { name = "goods_factory" },
+		effects = {
+			select =  {
+				"selected_industry_goods_factory1.wav",
+				"selected_industry_goods_factory2.wav",
+				"selected_industry_goods_factory3.wav"
+			}
+		}
+	},
+	availability = { },
+	categories = {"freestyle_industries"},
+	params = {
+		{
+			key = "clusterCategory",
+			name = _("Industry Category"),
+			values = { _("Other"), _("Coal"), _("Iron"), _("Stone"), _("Oil"), _("Forest"), _("Distribution") },
+			defaultIndex = 0
+		},
+		{
+			key = "clusterRadius",
+			name = _("Cluster Radius"),
+			values = { "200", "400", "800", "1600", "3200" },
+			defaultIndex = 2
+		},
+	},
+	placementParams = {
+		buildOrder = 0,
+		initWeight = 0,
+		tags = { "INDUSTRY_CLUSTER", },
+		distanceWeights = {
+			TOWN = -10,
+		},
+	},
+	updateFn = function(params)
+		local groundFace = { }
+		local terrainFaces = { }	
+		
+		local result = {}
+		result.models = { }
+		result.groundFaces = { }
+		result.stocks = { }
+		result.stockRules = { }
+
+		-- result.personCapacity = { type = "INDUSTRIAL", capacity = 50 }
+	
+		constructionutil.makeStocks({
+			stocks = {
+				--{ cargoType = "PLANKS", type = "RECEIVING", x = 0, 	y = (-19.5 + (1 * 4 ) ), 	sizex = 1,	sizey = 1 },
+			},
+			rule = { input = { }, output = {  }, capacity = 0 }
+		}, result)
+
+		result.models[#result.models + 1] = { id = "industry/lane.mdl", transf = { 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, -20.00000, 0.00000, 1.00000 }, }
+		result.models[#result.models + 1] = { id = "industry/lane.mdl", transf = { 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 15.00000, -20.00000, 0.00000, 1.00000 }, }
+		result.models[#result.models + 1] = { id = "industry/lane.mdl", transf = { 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, -15.00000, -20.00000, 0.00000, 1.00000 }, }
+		
+		groundFace = { {1, -20}, { 1, -15}, {-1, -15}, {-1, -20} }
+		result.groundFaces[#result.groundFaces + 1] = { face = groundFace, modes = { { type = "FILL", key = "industry_floor.lua" } } }
+		result.groundFaces[#result.groundFaces + 1] = { face = groundFace, modes = { { type = "STROKE_OUTER", key = "industry_floor_paving.lua" } } }
+
+		result.terrainAlignmentLists = {
+			{
+				type = "EQUAL",
+				faces = terrainFaces,
+				slopeLow = .35
+			}
+		}
+
+		local groundTextureFace = {
+			{ 1, -20, 0}, 
+			{ 1, -15, 0}, 
+			{-1, -15, 0},
+			{ -1, -20, 0},
+		}
+
+		local groundTextureUvs = {
+			{ 1, 1 },
+			{ 0, 1 },
+			{ 0, 0 },
+			{ 1, 0 },
+		}
+
+		return result
+    end
+}
+
+end
