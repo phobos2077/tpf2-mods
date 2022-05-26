@@ -132,7 +132,7 @@ function data()
 			-- game.config.economy.townDevelopment.cargoNeedsPerTown = actualParams["econ_townDevelopment_cargoNeedsPerTown"]
 
 			
-			debugPrint({"advanced-advanced runFn", modParams, getCurrentModId(), actualParams, game.config.locations, game.config.economy})
+			-- debugPrint({"advanced-advanced runFn", modParams, getCurrentModId(), actualParams, game.config.locations, game.config.economy})
 		end
 	}
 end
