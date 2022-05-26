@@ -1,5 +1,4 @@
 local table_util = require "costly_infrastructure_v2/lib/table_util"
-local serialize_util = require "costly_infrastructure_v2/lib/serialize_util"
 local log_util = require "costly_infrastructure_v2/lib/log_util"
 local entity_info = require "costly_infrastructure_v2/entity_info"
 local config = require "costly_infrastructure_v2/config"
@@ -7,9 +6,6 @@ local debugger = require "debugger"
 local vehicle_stats = require "costly_infrastructure_v2/vehicle_stats"
 
 local Category = (require "costly_infrastructure_v2/enum").Category
-
-local VEHICLE_STATS_FILENAME = "_tmp_phobos2077_vehicle_stats.lua"
-local FALLBACK_VEHICLE_STATS_MODULE = "costly_infrastructure_v2/fallback_vanilla_vehicles"
 
 ---@type ConfigObject
 local configData = nil
@@ -31,23 +27,7 @@ end
 ---@return VehicleMultCalculator
 local function getVehicleMultCalculator()
 	if vehicleMultCalculator == nil then
-		--local env = {}
-		--setmetatable(env, {__index=_G})
-		local vehicleStats
-		local luaChunk, err = loadfile(VEHICLE_STATS_FILENAME, "bt", {})
-		if type(luaChunk) == "function" then
-			local success, result = pcall(luaChunk)
-			if success then
-				vehicleStats = result
-			else
-				err = result
-			end
-		end
-		if type(vehicleStats) ~= "table" then
-			log_util.logError("Failed to read vehicle stats from " .. VEHICLE_STATS_FILENAME .. ":\n"..err.."\nWill use vanilla vehicle stats.")
-			vehicleStats = require(FALLBACK_VEHICLE_STATS_MODULE)
-		end
-		vehicleMultCalculator = vehicle_stats.VehicleMultCalculator.new(configData.vehicleMultParams, vehicleStats)
+		vehicleMultCalculator = vehicle_stats.VehicleMultCalculator.new(configData.vehicleMultParams, vehicle_stats.loadVehicleStats())
 	end
 	return vehicleMultCalculator
 end
@@ -196,18 +176,7 @@ function main.postRunFn(settings, params)
 	-- debugPrint({"postRunFn", settings, params})
 
 	-- Have to save vehicle info to file, because this is the only way to pass data into a ConstructWithModules function.
-	log_util.log("Calculating vehicle stats for cost scaling...")
-	local info = vehicle_stats.getAllVehicleAvailabilityAndScoresByCategory()
-	local file, err = io.open(VEHICLE_STATS_FILENAME, "w")
-	if file then
-		log_util.log("Writing vehicle stats to "..VEHICLE_STATS_FILENAME)
-		local infoStr = "return " .. serialize_util.serialize(info)
-		file:write(infoStr)
-		file:flush()
-		file:close()
-	else
-		log_util.logError("Failed to save vehicle stats: " .. (err or "unknown error"))
-	end
+	vehicle_stats.generateVehicleStatsFile()
 end
 
 return main

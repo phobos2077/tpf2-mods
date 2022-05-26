@@ -70,7 +70,6 @@ But it is affected by Base Cost Multipliers and is scaled independently from bui
 
 [h3]Known issues/limitations[/h3]
 [list]
-[*]Build costs of tracks and roads will not change dynamically (only affected by base multiplier). But maintenance costs will!
 [*]Red floating numbers will keep showing the original unmodified maintenance costs. Rest assured, additional fees will be deducted from your account behind the scenes. You can monitor this in Finances window.
 [*]Refund amounts for individual station modules will still be based on original (lower) module price, so you might get much less money back than you expect. This is also modding API limitation.
 [*]If you add this mod to existing game where you set Maintenance Cost to something other than 100% and built a bunch of infrastructure, the calculations will be slightly off (in higher or lower direction) because of how the mod works.
@@ -118,6 +117,9 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_water tip"] = maintMultTip.en("Water"),
 			["param maint_mult_air"] = "Maintenance: Air",
 			["param maint_mult_air tip"] = maintMultTip.en("Air"),
+
+			["param scale_edge_costs"] = "Scale Track/Road build costs",
+			["param scale_edge_costs tip"] = "Track/Road build costs will dynamically scale along with buildings.",
 		},
 
 		de = {
@@ -229,6 +231,9 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_water tip"] = "",
 			["param maint_mult_air"] = "Instandhaltung: Luft",
 			["param maint_mult_air tip"] = "",
+
+			["param scale_edge_costs"] = "Baukosten für Gleise und Straßen skalieren",
+			["param scale_edge_costs tip"] = "",
 		},
 
 		ru ={
@@ -324,6 +329,9 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_water tip"] = "",
 			["param maint_mult_air"] = "Содержание: Авиация",
 			["param maint_mult_air tip"] = "",
+
+			["param scale_edge_costs"] = "Масштабировать стоим. строит. путей и дорог",
+			["param scale_edge_costs tip"] = "",
 		}
 	}
 end

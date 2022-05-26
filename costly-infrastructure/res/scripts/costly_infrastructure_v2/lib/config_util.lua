@@ -1,6 +1,6 @@
 --[[
 Mod Configuration utilities.
-Version: 1.1
+Version: 1.2
 
 Copyright (c)  2022  phobos2077  (https://steamcommunity.com/id/phobos2077)
 
@@ -13,10 +13,7 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
-local table_util = require "costly_infrastructure_v2/lib/table_util"
-
 local config_util = {}
-
 
 config_util.fmt = {
 	percent = function(v)
@@ -56,7 +53,7 @@ config_util.fmt = {
 
 ---Creates ParamTypeData.
 ---@param values {[1]:any,[2]:string|nil}|any[] List of values or table-pairs of {value, label}.
----@param defaultIdx number? 1-based index of default value.
+---@par7am defaultIdx number? 1-based index of default value.
 ---@param labelFunc fun(v:any):string? Label creation function, used for values without labels provided.
 ---@param uiType string?
 ---@return ParamTypeData
@@ -91,7 +88,7 @@ end
 ---@param defaultVal number?
 ---@param ... number[]|number
 ---@return number[],number
-local function linearValues(defaultVal, ...)
+function config_util.linearValues(defaultVal, ...)
 	local values = {}
 	local defaultIdx = nil
 	local ranges = {...}
@@ -101,9 +98,10 @@ local function linearValues(defaultVal, ...)
 	end
 	for _, range in ipairs(ranges) do
 		local min, max, step = table.unpack(range)
-		for v = min, max + step/2, step do -- Add half step to fix issues with small float values
+		local eps = step / 10
+		for v = min, max + eps, step do
 			values[i] = v
-			if defaultIdx == nil and v >= defaultVal then
+			if defaultIdx == nil and v >= defaultVal - eps then
 				defaultIdx = i
 			end
 			i = i + 1
@@ -112,27 +110,11 @@ local function linearValues(defaultVal, ...)
 	return values, defaultIdx or 1
 end
 
----Creates ParamTypeData with values based linear progression: val = min + i*step
----@param labelFunc fun(v:any):string? Label creation function, used for values without labels provided.
----@param uiType string?
----@param defaultVal number? Default value (must be divisible to step value of one of the ranges).
----@param ... number[]|number List of ranges {{min, max, step}, ...} or single range as arguments min, max, step
----@return ParamTypeData
-function config_util.genParamLinear(labelFunc, uiType, defaultVal, ...)
-	local values, defaultIdx = linearValues(defaultVal, ...)
-	return config_util.paramType(values, defaultIdx, labelFunc, uiType)
-end
-
----Generate values and value labels for mod parameter based on exponential progression:  val = min*(base^i).
----@deprecated
 ---@param min number Minimum value.
 ---@param max number Maximum value (must follow progression).
 ---@param base number?  Base of exponent.
----@param defaultVal number? Default value (must follow progression).
----@param labelFunc function? Label generating function.
----@param uiType string? Param UI control type.
----@return ParamTypeData
-function config_util.genParamTypeExp(min, max, base, defaultVal, labelFunc, uiType)
+---@return number[],number
+function config_util.expValues(min, max, base, defaultVal)
 	local values = {}
 	local defaultIdx = nil
 	base = base or 2
@@ -148,7 +130,31 @@ function config_util.genParamTypeExp(min, max, base, defaultVal, labelFunc, uiTy
 		v = min * (base ^ i)
 		i = i + 1
 	end
-	return config_util.paramType(values, defaultIdx or 1, labelFunc, uiType)
+	return values, defaultIdx or 1
+end
+
+---Creates ParamTypeData with values based linear progression: val = min + i*step
+---@param labelFunc fun(v:any):string? Label creation function, used for values without labels provided.
+---@param uiType string?
+---@param defaultVal number? Default value (must be divisible to step value of one of the ranges).
+---@param ... number[]|number List of ranges {{min, max, step}, ...} or single range as arguments min, max, step
+---@return ParamTypeData
+function config_util.genParamLinear(labelFunc, uiType, defaultVal, ...)
+	local values, defaultIdx = config_util.linearValues(defaultVal, ...)
+	return config_util.paramType(values, defaultIdx, labelFunc, uiType)
+end
+
+---Generate values and value labels for mod parameter based on exponential progression:  val = min*(base^i).
+---@param min number Minimum value.
+---@param max number Maximum value (must follow progression).
+---@param base number?  Base of exponent.
+---@param defaultVal number? Default value (must follow progression).
+---@param labelFunc function? Label generating function.
+---@param uiType string? Param UI control type.
+---@return ParamTypeData
+function config_util.genParamExp(min, max, base, defaultVal, labelFunc, uiType)
+	local values, defaultIdx = config_util.expValues(min, max, base, defaultVal)
+	return config_util.paramType(values, defaultIdx, labelFunc, uiType)
 end
 
 ---Converts raw params into actual params.
@@ -170,6 +176,18 @@ function config_util.getActualParams(rawParams, allParams)
 	return actualParams
 end
 
+function config_util.checkboxParam(default)
+	return config_util.paramType({{false, "OFF"}, {true, "ON"}}, default and 2 or 1, nil, "CHECKBOX")
+end
+
+---Combo box
+---@param values {[1]=any,[2]=string}[]
+---@param default number?
+---@return ParamTypeData
+function config_util.comboBoxParam(values, default)
+	return config_util.paramType(values, default or 1, nil, "COMBOBOX")
+end
+
 ---Generate param info for mod settings.
 ---@param key string
 ---@param paramData ParamTypeData
@@ -189,9 +207,11 @@ end
 ---@param allParams table Table of pairs {paramId, ParamTypeData}.
 ---@return table
 function config_util.makeModParams(allParams)
-	return table_util.map(allParams, function(data)
-		return makeParamInfo(data[1], data[2])
-	end)
+	local result = {}
+	for i, data in ipairs(allParams) do
+		result[i] = makeParamInfo(data[1], data[2])
+	end
+	return result
 end
 
 return config_util

@@ -38,6 +38,7 @@ local paramTypes = {
 	terrain = function(default) return genSlider(fmt.timesX, default or 1, {0.5, 3, 0.5}, {4, 8, 1}) end,
 	--inflation = function(default) return genSlider(fmt.timesX, default or 10, 1, 30, 1) end,
 	--year = function (min, max, default)	return genSlider(nil, default, min, max, 10) end,
+	flag = function(default) return config_util.checkboxParam(default) end,
 }
 
 local allParams = {
@@ -48,10 +49,11 @@ local allParams = {
 	{"mult_bridges_tunnels", paramTypes.terrain(3)},
 	{"mult_terrain", paramTypes.terrain(1)},
 	{"mult_upgrade_edge", paramTypes.upgrade()},
-	{"veh_mult_street", paramTypes.vehMult(10)},
-	{"veh_mult_rail", paramTypes.vehMult(10)},
+	{"veh_mult_street", paramTypes.vehMult(6)},
+	{"veh_mult_rail", paramTypes.vehMult(6)},
 	{"veh_mult_water", paramTypes.vehMult(6)},
 	{"veh_mult_air", paramTypes.vehMult(3)},
+	{"scale_edge_costs", paramTypes.flag(true)},
 	{"maint_mult_street", paramTypes.cost(1)},
 	{"maint_mult_rail", paramTypes.cost(3)},
 	{"maint_mult_water", paramTypes.cost(3)},
@@ -113,6 +115,8 @@ local function getDataFromParams(params)
 			mult = params.veh_mult_air,
 		},
 	}
+	---@type boolean
+	o.scaleEdgeCosts = params.scale_edge_costs
 	--- Additional multiplier for bridge and tunnel maintenance. TODO?
 	-- o.bridgeAndTunnelMaintenanceFactor = 1
 	---@type table<string,MaintenanceCostParam>

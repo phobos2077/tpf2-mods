@@ -21,7 +21,7 @@ local main = require "costly_infrastructure_v2/main"
 function data()
 	return {
 		info = {
-			minorVersion = 1,
+			minorVersion = 2,
 			severityAdd = "NONE",
 			severityRemove = "NONE",
 			name = _("mod name"),

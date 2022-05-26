@@ -12,9 +12,11 @@ The above copyright notice and this permission notice shall be included in all c
 portions of the Software.
 --]]
 
+local log_util = require "costly_infrastructure_v2/lib/log_util"
 local table_util = require "costly_infrastructure_v2/lib/table_util"
 local math_ex = require "costly_infrastructure_v2/lib/math_ex"
 local game_enum = require "costly_infrastructure_v2/lib/game_enum"
+local serialize_util = require "costly_infrastructure_v2/lib/serialize_util"
 local Category = (require "costly_infrastructure_v2/enum").Category
 
 local vehicle_stats = {}
@@ -208,5 +210,44 @@ end
 Calculator.__index = Calculator
 
 vehicle_stats.VehicleMultCalculator = Calculator
+
+
+local VEHICLE_STATS_FILENAME = "_tmp_phobos2077_vehicle_stats.lua"
+local FALLBACK_VEHICLE_STATS_MODULE = "costly_infrastructure_v2/fallback_vanilla_vehicles"
+
+function vehicle_stats.generateVehicleStatsFile()
+	log_util.log("Calculating vehicle stats for cost scaling...")
+	local info = vehicle_stats.getAllVehicleAvailabilityAndScoresByCategory()
+	local file, err = io.open(VEHICLE_STATS_FILENAME, "w")
+	if file then
+		log_util.log("Writing vehicle stats to "..VEHICLE_STATS_FILENAME)
+		local infoStr = "return " .. serialize_util.serialize(info)
+		file:write(infoStr)
+		file:flush()
+		file:close()
+	else
+		log_util.logError("Failed to save vehicle stats: " .. (err or "unknown error"))
+	end
+end
+
+---Loads vehicle stats from generated lua file.
+---@return table<string, number[]>
+function vehicle_stats.loadVehicleStats()
+	local vehicleStats
+	local luaChunk, err = loadfile(VEHICLE_STATS_FILENAME, "bt", {})
+	if type(luaChunk) == "function" then
+		local success, result = pcall(luaChunk)
+		if success then
+			vehicleStats = result
+		else
+			err = result
+		end
+	end
+	if type(vehicleStats) ~= "table" then
+		log_util.logError("Failed to read vehicle stats from " .. VEHICLE_STATS_FILENAME .. ":\n"..err.."\nWill use vanilla vehicle stats.")
+		vehicleStats = require(FALLBACK_VEHICLE_STATS_MODULE)
+	end
+	return vehicleStats
+end
 
 return vehicle_stats

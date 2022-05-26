@@ -19,6 +19,7 @@ local math_ex = require "costly_infrastructure_v2/lib/math_ex"
 local entity_costs = require "costly_infrastructure_v2/entity_costs"
 local line_stats = require "costly_infrastructure_v2/line_stats"
 local station_stats = require "costly_infrastructure_v2/station_stats"
+local vehicle_stats = require "costly_infrastructure_v2/vehicle_stats"
 local enum = require "costly_infrastructure_v2/enum"
 local debug = require "costly_infrastructure_v2/debug"
 local config = require "costly_infrastructure_v2/config"
@@ -45,6 +46,16 @@ local edgeCategoryToConstruction = {
 --- VARIABLES
 
 local persistentData = {}
+
+local vehicleMultCalculator
+
+---@return VehicleMultCalculator
+local function getVehicleMultCalculator()
+	if vehicleMultCalculator == nil then
+		vehicleMultCalculator = vehicle_stats.VehicleMultCalculator.new(config.get().vehicleMultParams, vehicle_stats.loadVehicleStats())
+	end
+	return vehicleMultCalculator
+end
 
 
 --- FUNCTIONS
@@ -145,6 +156,16 @@ local function chargeExtraMaintenance(configData)
 		string.format("\nFinal multipliers: Rail: %.2f, Road: %.2f, Water: %.2f, Air: %.2f", mults.rail, mults.street, mults.water, mults.air))
 end
 
+local function bookExtraBuildCosts(amount, carrier, construction)
+	print(string.format("Charge extra for construction: %d, carrier: %d, constr: %d", amount, carrier, construction))
+	journal_util.bookEntry(-amount, journal_util.Enum.Type.CONSTRUCTION, carrier, construction, 0, 0)
+end
+
+
+local guiState = {}
+
+local noSpam = false
+
 function data()
 	return {
 		save = function()
@@ -171,11 +192,44 @@ function data()
 			-- if id ~= "constructionBuilder" then
 			-- 	debugPrint({"guiHandleEvent", id, name, param})
 			-- end
+			
+			-- Track build costs scaling.
+			if (id == "trackBuilder" or id == "streetBuilder") and (name == "builder.proposalCreate" or name == "builder.apply") and config.get().scaleEdgeCosts then
+				-- if name == "builder.apply" then
+				-- 	debugPrint({"builder apply", param})
+				-- end
+				local addedSegments = param.proposal.proposal.addedSegments
+				if #addedSegments > 0 then
+					local category = addedSegments[1].type == 1 and Category.RAIL or Category.STREET
+					local mult = getVehicleMultCalculator():getMultiplier(category, game.interface.getGameTime().date.year)
+					if name == "builder.apply" then
+						-- debugPrint({"apply", param.data.costs, category, game.interface.getGameTime().date.year, mult})
+						if mult > 1 then
+							local carrier = category == Category.RAIL
+								and journal_util.Enum.Carrier.RAIL
+								or journal_util.Enum.Carrier.ROAD
+							local construction = category == Category.RAIL
+								and journal_util.Enum.Construction.TRACK
+								or journal_util.Enum.Construction.STREET
+							bookExtraBuildCosts(math.floor(param.data.costs * (mult - 1)), carrier, construction)
+						end
+					end
+					param.data.costs = math.floor(param.data.costs * mult)
+				end
+			end
 		end,
 		handleEvent = function(src, id, name, param)
 			-- if src ~= "guidesystem.lua" then
 			-- 	debugPrint({"handleEvent", src, id, name, param})
 			-- end
+
+			-- Support for auto-parallel tracks mod.
+			if id == "__ptracks__" and name == "costs" and param.costs and config.get().scaleEdgeCosts then
+				local mult = getVehicleMultCalculator():getMultiplier(Category.RAIL, game.interface.getGameTime().date.year)
+				if mult > 1 then
+					bookExtraBuildCosts(math.floor(param.costs * (mult - 1)), journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK)
+				end
+			end
 		end
 	}
 end
