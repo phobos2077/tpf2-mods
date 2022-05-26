@@ -1,11 +1,12 @@
 local zoneutil = require "mission/zone"
 local table_util = require "industry_placement/lib/table_util"
+local vector2 = require "industry_placement/lib/vector2"
 
 local nextUpdate
 
 local knownConstructions = {}
 
-local industryData = {
+local INDUSTRY_DATA = {
 	["industry/chemical_plant.con"] = {{distanceWeights={INPUT_OIL=-2,INPUT_PLASTIC=1},initWeight=1,tags={"INPUT_OIL"},buildOrder=14},{PLASTIC=1}},
 	["industry/coal_mine.con"] = {{distanceWeights={INPUT_COAL=1,TOWN=-1},initWeight=4,buildOrder=11},{COAL=1}},
 	["industry/construction_material.con"] = {{distanceWeights={INPUT_CONSTRUCTION_MATERIALS=1,INPUT_STONE=-2},initWeight=1,tags={"INPUT_STONE"},buildOrder=3},{CONSTRUCTION_MATERIALS=1}},
@@ -34,7 +35,7 @@ local IndustryCategory = {
 	Distribution = 7
 }
 
-local categoryByOutput = {
+local CATEGORY_BY_OUTPUT = {
 	COAL = IndustryCategory.Coal,
 	IRON_ORE = IndustryCategory.Iron,
 	STONE = IndustryCategory.Stone,
@@ -42,7 +43,7 @@ local categoryByOutput = {
 	LOGS = IndustryCategory.Forest,
 }
 
-local industryPlacementTotalWeight = table_util.sum(industryData, function(d) return d[1].initWeight end)
+local industryPlacementTotalWeight = table_util.sum(INDUSTRY_DATA, function(d) return d[1].initWeight end)
 
 local function randomPointInCircle(pos, radius)
 	local r = (radius or 1) * math.sqrt(math.random())
@@ -61,7 +62,7 @@ local function getWorldSize()
 	}
 end
 
-local clusterZoneColors = {
+local CLUSTER_ZONE_COLORS = {
 	-- TODO: colors to be more visible on terrain
 	[IndustryCategory.Other] = {1,1,1,1},
 	[IndustryCategory.Coal] = {0.2,0.2,0.2,1},
@@ -72,15 +73,15 @@ local clusterZoneColors = {
 	[IndustryCategory.Distribution] = {0.13,0.58,0.62,1},
 }
 
-local clusterRadiuses = { 200, 400, 800, 1600, 3200 }
-
+local CLUSTER_RADIUSES = { 200, 400, 800, 1600, 3200 }
 local MAX_PLACEMENT_ATTEMPTS = 10
+local MAX_HEIGHT_DIFF = 30
 
 ---@param constr userdata
 ---@return ClusterData
 local function getClusterDataFromConstruction(constr)
 	local category = constr.params.clusterCategory + 1
-	local radius = constr.params.clusterRadius and clusterRadiuses[constr.params.clusterRadius+1] or 400
+	local radius = constr.params.clusterRadius and CLUSTER_RADIUSES[constr.params.clusterRadius+1] or 400
 	local vec4 = constr.transf:cols(3)
 	---@type Vec3f
 	local position = api.type.Vec3f.new(vec4[1], vec4[2], vec4[3])
@@ -94,7 +95,7 @@ local function setClusterZone(id, clusterData)
 	local zoneData = clusterData and {
 		polygon = zoneutil.makeCircleZone(clusterData.pos, clusterData.radius),
 		draw = true,
-		drawColor = clusterZoneColors[clusterData.cat] or {1,0,1,1}
+		drawColor = CLUSTER_ZONE_COLORS[clusterData.cat] or {1,0,1,1}
 	} or nil
 	game.interface.setZone("industry_cluster_"..id, zoneData)
 end
@@ -125,11 +126,31 @@ end
 
 local function validateIndustryPlacement(fileName, pos)
 	-- TODO: need to also prevent placement on very uneven terrain, such as on the mountain
+	local vec2c = api.type.Vec2f.new
+	local center = vec2c(pos[1], pos[2])
+	local heightPoints = {
+		pos[3],
+		api.engine.terrain.getBaseHeightAt(center + vec2c(150,150)),
+		api.engine.terrain.getBaseHeightAt(center + vec2c(150,-150)),
+		api.engine.terrain.getBaseHeightAt(center + vec2c(-150,-150)),
+		api.engine.terrain.getBaseHeightAt(center + vec2c(-150,150))
+	}
+	table.sort(heightPoints)
+
+	local heightDiff = heightPoints[#heightPoints] - heightPoints[1]
+	if heightDiff > MAX_HEIGHT_DIFF then
+		print("validateIndustryPlacement: FALSE, height diff is "..heightDiff)
+		return false
+	end
+
 	local proposal, context = placeIndustryProposal(fileName, "test", pos)
 	local proposalData = api.engine.util.proposal.makeProposalData(proposal, context)
 	local errState = proposalData.errorState
-	debugPrint({"validateIndustryPlacement", fileName, pos, errState})
-	return not (errState.critical or false) and not (errState.messages and #errState.messages > 0 or false)
+	local result = not (errState.critical or false) and not (errState.messages and #errState.messages > 0 or false)
+	if not result then
+		debugPrint("validateIndustryPlacement: FALSE, error: "..(errState.messages and errState.messages[1] or "none")..", critical: "..tostring(errState.critical))
+	end
+	return result
 end
 
 local function createIndustry(fileName, name, pos, onComplete)
@@ -149,13 +170,24 @@ local function getIndustryRes(fileName)
 end
 
 local function getClosestTown(position)
-	local townIds = game.interface.getEntities({pos = {position[1], position[2]}, radius = 1e10}, {type = "TOWN", includeData = true})
+	local towns = game.interface.getEntities({pos = {position[1], position[2]}, radius = 1e10}, {type = "TOWN", includeData = true})
+	local minDistance = math.huge
+	local closestTown
+	for id, townData in pairs(towns) do
+		local distance = vector2.distance(position, townData.position)
+		if distance < minDistance then
+			minDistance = distance
+			closestTown = townData
+		end
+	end
+	return closestTown
 end
 
-local function processIndustries()
+local function analyzeIndustriesOnMap()
+	local timer = os.clock()
 	local ents = game.interface.getEntities({radius = 1e10}, {type = "CONSTRUCTION"})
-	local numByType = {}
-	local clustersByCategory = {}
+	local idsByFileName = {_total = 0}
+	local clustersByCategory = {_total = 0}
 	for _, id in pairs(ents) do
 		local constr = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)
 		if constr and constr.fileName:find("^industry") then
@@ -166,18 +198,97 @@ local function processIndustries()
 					local clusterList = clustersByCategory[clusterData.cat] or {}
 					clustersByCategory[clusterData.cat] = clusterList
 					clusterList[#clusterList+1] = clusterData
+					clustersByCategory._total = clustersByCategory._total + 1
 					setClusterZone(id, clusterData)
 				end
-			elseif industryData[constr.fileName] then
-				numByType[constr.fileName] = (numByType[constr.fileName] or 0) + 1
+			elseif INDUSTRY_DATA[constr.fileName] then
+				local ids = idsByFileName[constr.fileName] or {}
+				idsByFileName[constr.fileName] = ids
+				ids[#ids+1] = id
+				idsByFileName._total = idsByFileName._total + 1
 			end
 		end
 	end
 
+	local elapsed = os.clock() - timer
+	print(string.format("Found %d industries and %d clusters on map in %.0f ms.", idsByFileName._total, clustersByCategory._total, elapsed * 1000))
+	return clustersByCategory, idsByFileName
+end
+
+local function tryPlaceIndustry(fileName, clustersByCategory, idsByFileName)
+	local resData = getIndustryRes(fileName)
+	local industryOutput = INDUSTRY_DATA[fileName][2]
+	local firstOutput = next(industryOutput)
+	local category = CATEGORY_BY_OUTPUT[firstOutput] or IndustryCategory.Other
+	local clusterList = clustersByCategory[category]
+	local otherIndustryIds = idsByFileName[fileName]
+	if not clusterList then
+		print("No clusters for category "..category.." to spawn "..fileName.."!")
+		return
+	end
+	local totalArea = table_util.sum(clusterList, function(cluster) return cluster.area end)
+	local validPosition
+	local lastPos
+	for i = 1, MAX_PLACEMENT_ATTEMPTS, 1 do
+		local target = math.random() * totalArea
+		local targetCluster
+		local sum = 0
+		for _, cluster in ipairs(clusterList) do
+			sum = sum + cluster.area
+			if sum > target then
+				targetCluster = cluster
+				break
+			end
+		end
+	
+		local pos = randomPointInCircle(targetCluster.pos, targetCluster.radius)
+		lastPos = api.type.Vec3f.new(pos[1], pos[2], api.engine.terrain.getBaseHeightAt(api.type.Vec2f.new(pos[1], pos[2])))
+		if validateIndustryPlacement(fileName, lastPos) then
+			validPosition = lastPos
+			break
+		end
+	end
+	if not validPosition then
+		print("Failed to find valid position for "..fileName.." after "..MAX_PLACEMENT_ATTEMPTS.." attempts!")
+		debugPrint(lastPos)
+		return
+	end
+
+	local closestTown = getClosestTown(validPosition)
+	local baseName = closestTown and string.format("%s %s", closestTown.name, resData.description.name) or resData.description.name
+	local industryName = baseName
+
+	-- Find unique name
+	local otherIndustryNames = otherIndustryIds and table_util.mapDict(otherIndustryIds, function (id)
+		return api.engine.getComponent(id, api.type.ComponentType.NAME).name, true
+	end) or {}
+	local i = 1
+	while otherIndustryNames[industryName] and i < 99 do
+		i = i + 1
+		industryName = string.format("%s #%d", baseName, i)
+	end
+	createIndustry(fileName, industryName, validPosition, function()
+		print("Created "..fileName.." Successfully!")
+		if closestTown then
+			api.cmd.sendCommand(api.cmd.make.connectTownsAndIndustries({closestTown.id}, {}, true), function(cmd, res)
+				print("Connect town "..closestTown.name.." : "..tostring(res))
+			end)
+		end
+	end)
+end
+
+local function processIndustries()
+	local clustersByCategory, idsByFileName = analyzeIndustriesOnMap()
+
+	local totalIndustryNum = idsByFileName._total
 	local worldSize = getWorldSize()
 	local worldSizeSqKm = worldSize[1] * worldSize[2]
 	local targetDensity = game.config.locations.industry.targetMaxNumberPerArea
 	local targetTotalNum = math.floor(worldSizeSqKm * targetDensity)
+
+	if totalIndustryNum >= targetTotalNum then
+		return
+	end
 
 	--[[local targetNumByType = {}
 	for fileName, placementParams in pairs(industryPlacementParams) do
@@ -188,10 +299,12 @@ local function processIndustries()
 	local maxDiff = 0
 	local minOrder = 9999999
 	local selectedFileName
-	for fileName, data in pairs(industryData) do
+	local targetNumByFileName = {}
+	for fileName, data in pairs(INDUSTRY_DATA) do
 		local placementParams, ruleOutput = table.unpack(data)
-		local targetNum = targetTotalNum * placementParams.initWeight / industryPlacementTotalWeight
-		local actualNum = numByType[fileName] or 0
+		local targetNum = math.ceil(targetTotalNum * placementParams.initWeight / industryPlacementTotalWeight)
+		targetNumByFileName[fileName] = targetNum
+		local actualNum = idsByFileName[fileName] and #idsByFileName[fileName] or 0
 		local diff = targetNum - actualNum
 		if diff > maxDiff or (diff == maxDiff and placementParams.buildOrder < minOrder) then
 			maxDiff = diff
@@ -200,50 +313,15 @@ local function processIndustries()
 		end
 	end
 
+	debugPrint({"target data", worldSizeSqKm, targetDensity, targetTotalNum, targetNumByFileName})
+
 	-- If selected, spawn industry in random position.
 	if selectedFileName then
-		local resData = getIndustryRes(selectedFileName)
-		local industryOutput = industryData[selectedFileName][2]
-		local firstOutput = next(industryOutput)
-		local category = categoryByOutput[firstOutput] or IndustryCategory.Other
-		local clusterList = clustersByCategory[category]
-		if clusterList then
-			local totalArea = table_util.sum(clusterList, function(cluster) return cluster.area end)
-			local validPosition
-			local lastPos
-			for i = 1, MAX_PLACEMENT_ATTEMPTS, 1 do
-				local target = math.random() * totalArea
-				local targetCluster
-				local sum = 0
-				for _, cluster in ipairs(clusterList) do
-					sum = sum + cluster.area
-					if sum > target then
-						targetCluster = cluster
-						break
-					end
-				end
-			
-				local pos = randomPointInCircle(targetCluster.pos, targetCluster.radius)
-				lastPos = api.type.Vec3f.new(pos[1], pos[2], api.engine.terrain.getBaseHeightAt(api.type.Vec2f.new(pos[1], pos[2])))
-				if validateIndustryPlacement(selectedFileName, lastPos) then
-					validPosition = lastPos
-					break
-				end
-			end
-			if validPosition then
-				createIndustry(selectedFileName, resData.description.name, validPosition, function()
-					print("Created "..selectedFileName.." Successfully!")	
-				end)
-			else
-				print("Failed to find valid position for "..selectedFileName.." after 5 attempts!")
-				debugPrint(lastPos)
-			end
-		else
-			print("No clusters for category "..category.." to spawn "..selectedFileName.."!")
-		end
+		tryPlaceIndustry(selectedFileName, clustersByCategory, idsByFileName)
 	end
 end
 
+local tmpZoneAt
 
 function data()
 	return {
@@ -258,11 +336,12 @@ function data()
 				math.randomseed(math.floor(curTime))
 				processIndustries()
 				nextUpdate = curTime + 10
-
+			end
+		end,
+		guiUpdate = function ()
+			if tmpZoneAt ~= nil and os.clock() - tmpZoneAt > 2 then
 				setClusterZone("tmp", nil)
-
-				-- TODO: hide properly even in paused game
-				game.interface.setZone("industry_cluster_tmp", nil)
+				tmpZoneAt = nil
 			end
 		end,
 		guiHandleEvent = function(id, name, param)
@@ -274,11 +353,12 @@ function data()
 				if con and con.fileName == "industry/industry_cluster.con" then
 					if name == "builder.proposalCreate" then
 						setClusterZone("tmp", getClusterDataFromConstruction(con))
+						tmpZoneAt = os.clock()
 					elseif name == "builder.apply" then
 						setClusterZone(param.result[1], getClusterDataFromConstruction(con))
 					end
 				end
-			elseif id == "bulldozer" and #param.proposal.toRemove > 0 then
+			elseif id == "bulldozer" and name == "builder.apply" and #param.proposal.toRemove > 0 then
 				-- TODO: check if ID is cluster to reduce on API calls?
 				setClusterZone(param.proposal.toRemove[1], nil)
 			end

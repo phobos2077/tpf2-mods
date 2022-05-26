@@ -47,9 +47,6 @@ return {
 		},
 	},
 	updateFn = function(params)
-		local groundFace = { }
-		local terrainFaces = { }	
-		
 		local result = {}
 		result.models = { }
 		result.groundFaces = { }
@@ -66,35 +63,20 @@ return {
 		}, result)
 
 		result.models[#result.models + 1] = { id = "industry/lane.mdl", transf = { 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, -20.00000, 0.00000, 1.00000 }, }
-		result.models[#result.models + 1] = { id = "industry/lane.mdl", transf = { 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 15.00000, -20.00000, 0.00000, 1.00000 }, }
-		result.models[#result.models + 1] = { id = "industry/lane.mdl", transf = { 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, -15.00000, -20.00000, 0.00000, 1.00000 }, }
+		--result.models[#result.models + 1] = { id = "industry/lane.mdl", transf = { 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 15.00000, -20.00000, 0.00000, 1.00000 }, }
+		--result.models[#result.models + 1] = { id = "industry/lane.mdl", transf = { 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000, 0.00000, 1.00000, 0.00000, -15.00000, -20.00000, 0.00000, 1.00000 }, }
 		
-		groundFace = { {1, -20}, { 1, -15}, {-1, -15}, {-1, -20} }
+		local groundFace = { {1, -40}, { 1, -30}, {-1, -30}, {-1, -40} }
 		result.groundFaces[#result.groundFaces + 1] = { face = groundFace, modes = { { type = "FILL", key = "industry_floor.lua" } } }
 		result.groundFaces[#result.groundFaces + 1] = { face = groundFace, modes = { { type = "STROKE_OUTER", key = "industry_floor_paving.lua" } } }
 
 		result.terrainAlignmentLists = {
 			{
 				type = "EQUAL",
-				faces = terrainFaces,
+				faces = {{ {1, -40, 0}, {1, -30, 0}, {-1, -30, 0}, {-1, -40, 0} } },
 				slopeLow = .35
 			}
 		}
-
-		local groundTextureFace = {
-			{ 1, -20, 0}, 
-			{ 1, -15, 0}, 
-			{-1, -15, 0},
-			{ -1, -20, 0},
-		}
-
-		local groundTextureUvs = {
-			{ 1, 1 },
-			{ 0, 1 },
-			{ 0, 0 },
-			{ 1, 0 },
-		}
-
 		return result
     end
 }
