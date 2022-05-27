@@ -117,7 +117,7 @@ function table_util.reduce(t, func, result)
 	return result
 end
 
---- Groups values from list into a new dictionary using key selector function.
+--- Groups values from table into a new dictionary using key selector function.
 ---@param t table
 ---@param func function Key selector (value, key).
 function table_util.groupBy(t, func)

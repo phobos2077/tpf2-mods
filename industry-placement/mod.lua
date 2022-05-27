@@ -54,6 +54,7 @@ function data()
 			-- addModifier("loadConstruction", constructionMod)
 
 			game.config.locations.industry.maxNumberPerArea = 0
+			game.config.locations.industry.absoluteMinimum = 0
 
 			-- Enabling spawnIndustries seems to result in game showing popup messages for industries spawned by script!
 			game.config.economy.industryDevelopment.spawnIndustries = true
