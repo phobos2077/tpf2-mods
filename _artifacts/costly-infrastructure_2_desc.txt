@@ -53,7 +53,7 @@ But it is affected by Base Cost Multipliers and is scaled independently from bui
 [/list]
 
 
-[h3]If you use AutoSig or Auto-Parallel Tracks mod...[/h3]
+[h3]AutoSig & Auto-Parallel Tracks mod compatibility[/h3]
 Please, use these modified versions if you want to prevent cheating (by default extra signals and tracks are free with these mods):
 https://steamcommunity.com/workshop/filedetails/discussion/2138210967/3387282447744159286/
 https://steamcommunity.com/workshop/filedetails/discussion/2138212041/3387282447742132149/
@@ -68,6 +68,9 @@ https://steamcommunity.com/workshop/filedetails/discussion/2138212041/3387282447
 
 
 [h3]Other economy mods you might want to check out[/h3]
+To fine-tune vehicle maintenance costs for better balance with increased infrastructure costs
+https://steamcommunity.com/sharedfiles/filedetails/?id=2808165532
+
 Original version of the mod, based on "Inflation" curve:
 https://steamcommunity.com/sharedfiles/filedetails/?id=2798809680
 

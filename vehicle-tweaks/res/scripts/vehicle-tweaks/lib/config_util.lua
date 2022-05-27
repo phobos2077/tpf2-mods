@@ -1,6 +1,6 @@
 --[[
 Mod Configuration utilities.
-Version: 1.2
+Version: 1.3
 
 Copyright (c)  2022  phobos2077  (https://steamcommunity.com/id/phobos2077)
 
@@ -98,13 +98,37 @@ function config_util.linearValues(defaultVal, ...)
 	end
 	for _, range in ipairs(ranges) do
 		local min, max, step = table.unpack(range)
-		for v = min, max + step/2, step do -- Add half step to fix issues with small float values
+		local eps = step / 10
+		for v = min, max + eps, step do
 			values[i] = v
-			if defaultIdx == nil and v >= defaultVal then
+			if defaultIdx == nil and v >= defaultVal - eps then
 				defaultIdx = i
 			end
 			i = i + 1
 		end
+	end
+	return values, defaultIdx or 1
+end
+
+---@param min number Minimum value.
+---@param max number Maximum value (must follow progression).
+---@param base number?  Base of exponent.
+---@return number[],number
+function config_util.expValues(min, max, base, defaultVal)
+	local values = {}
+	local defaultIdx = nil
+	base = base or 2
+	defaultVal = defaultVal or min
+
+	local i = 0
+	local v = min
+	while v <= max do
+		values[i] = v
+		if defaultIdx == nil and v >= defaultVal then
+			defaultIdx = i
+		end
+		v = min * (base ^ i)
+		i = i + 1
 	end
 	return values, defaultIdx or 1
 end
@@ -121,7 +145,6 @@ function config_util.genParamLinear(labelFunc, uiType, defaultVal, ...)
 end
 
 ---Generate values and value labels for mod parameter based on exponential progression:  val = min*(base^i).
----@deprecated
 ---@param min number Minimum value.
 ---@param max number Maximum value (must follow progression).
 ---@param base number?  Base of exponent.
@@ -129,23 +152,9 @@ end
 ---@param labelFunc function? Label generating function.
 ---@param uiType string? Param UI control type.
 ---@return ParamTypeData
-function config_util.genParamTypeExp(min, max, base, defaultVal, labelFunc, uiType)
-	local values = {}
-	local defaultIdx = nil
-	base = base or 2
-	defaultVal = defaultVal or min
-
-	local i = 0
-	local v = min
-	while v <= max do
-		values[i] = v
-		if defaultIdx == nil and v >= defaultVal then
-			defaultIdx = i
-		end
-		v = min * (base ^ i)
-		i = i + 1
-	end
-	return config_util.paramType(values, defaultIdx or 1, labelFunc, uiType)
+function config_util.genParamExp(min, max, base, defaultVal, labelFunc, uiType)
+	local values, defaultIdx = config_util.expValues(min, max, base, defaultVal)
+	return config_util.paramType(values, defaultIdx, labelFunc, uiType)
 end
 
 ---Converts raw params into actual params.
@@ -184,10 +193,14 @@ end
 ---@param paramData ParamTypeData
 ---@return table
 local function makeParamInfo(key, paramData)
+	local tip = _("param "..key.." tip")
+	if tip:find("^param%s") then
+		tip = ""
+	end
 	return {
 		key = key,
 		name = _("param "..key),
-		tooltip = _("param "..key.." tip"),
+		tooltip = tip,
 		uiType = paramData.uiType or "SLIDER",
 		values = paramData.labels,
 		defaultIndex = paramData.defaultIdx

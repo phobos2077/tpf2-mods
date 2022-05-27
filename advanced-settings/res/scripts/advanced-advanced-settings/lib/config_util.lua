@@ -1,6 +1,6 @@
 --[[
 Mod Configuration utilities.
-Version: 1.2
+Version: 1.3
 
 Copyright (c)  2022  phobos2077  (https://steamcommunity.com/id/phobos2077)
 
@@ -193,10 +193,14 @@ end
 ---@param paramData ParamTypeData
 ---@return table
 local function makeParamInfo(key, paramData)
+	local tip = _("param "..key.." tip")
+	if tip:find("^param%s") then
+		tip = ""
+	end
 	return {
 		key = key,
 		name = _("param "..key),
-		tooltip = _("param "..key.." tip"),
+		tooltip = tip,
 		uiType = paramData.uiType or "SLIDER",
 		values = paramData.labels,
 		defaultIndex = paramData.defaultIdx

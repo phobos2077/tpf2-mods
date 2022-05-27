@@ -49,14 +49,26 @@ end
 
 local function modelModifier(fileName, data)
 	if data.metadata.transportVehicle and not data.metadata.car then
-		local avail = data.metadata.availability
 		local category = getVehicleCategory(data.metadata)
-		if category and avail and avail.yearTo and avail.yearTo > 0 then
-			local addYears = actualParams["add_years_"..category]
-			if addYears then
-				avail.yearTo = avail.yearTo + addYears
-			else
-				avail.yearTo = 0
+		if category then
+			local avail = data.metadata.availability
+			if avail and avail.yearTo and avail.yearTo > 0 then
+				local addYears = actualParams["add_years_"..category]
+				if addYears then
+					avail.yearTo = avail.yearTo + addYears
+				else
+					avail.yearTo = 0
+				end
+			end
+
+			local maintenance = data.metadata.maintenance
+			local maintenanceScale = actualParams["maint_"..category]
+			if maintenance and maintenance.runningCosts ~= nil and math.abs(maintenanceScale - 1.0) > 0.001 then
+				if maintenance.runningCosts < 0 then
+					maintenance.runningCostScale = (maintenance.runningCostScale or 1.0) * maintenanceScale
+				elseif maintenance.runningCosts > 0 then
+					maintenance.runningCosts = maintenance.runningCosts * maintenanceScale
+				end
 			end
 		end
 	end
@@ -65,22 +77,33 @@ end
 
 local addYearValues = config_util.linearValues(0, {0, 45, 5}, {50, 100, 10})
 table.insert(addYearValues, {false, "∞"})
-local addYearsParamType = config_util.paramType(addYearValues, 1, nil, "SLIDER")
+local paramTypes = {
+	addYears = config_util.paramType(addYearValues, 1, nil, "SLIDER"),
+	maintenance = config_util.genParamLinear(config_util.fmt.percent, "SLIDER", 1.0, {0.0, 0.7, 0.1}, {0.75, 1.30, 0.05}, {1.4, 2.0, 0.1})
+}
+
 
 local allParams = {
-	{"add_years_road", addYearsParamType},
-	{"add_years_tram", addYearsParamType},
-	{"add_years_loco", addYearsParamType},
-	{"add_years_wagon", addYearsParamType},
-	{"add_years_ship", addYearsParamType},
-	{"add_years_plane", addYearsParamType},
+	{"add_years_road", paramTypes.addYears},
+	{"add_years_tram", paramTypes.addYears},
+	{"add_years_loco", paramTypes.addYears},
+	{"add_years_wagon", paramTypes.addYears},
+	{"add_years_ship", paramTypes.addYears},
+	{"add_years_plane", paramTypes.addYears},
+
+	{"maint_road", paramTypes.maintenance},
+	{"maint_tram", paramTypes.maintenance},
+	{"maint_loco", paramTypes.maintenance},
+	{"maint_wagon", paramTypes.maintenance},
+	{"maint_ship", paramTypes.maintenance},
+	{"maint_plane", paramTypes.maintenance},
 }
 
 
 function data()
 	return {
 		info = {
-			minorVersion = 0,
+			minorVersion = 1,
 			severityAdd = "NONE",
 			severityRemove = "NONE",
 			name = _("mod name"),

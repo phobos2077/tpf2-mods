@@ -77,6 +77,9 @@ But it is affected by Base Cost Multipliers and is scaled independently from bui
 
 
 [h3]Other economy mods you might want to check out[/h3]
+To fine-tune vehicle maintenance costs for better balance with increased infrastructure costs
+https://steamcommunity.com/sharedfiles/filedetails/?id=2808165532
+
 Original version of the mod, based on "Inflation" curve:
 https://steamcommunity.com/sharedfiles/filedetails/?id=2798809680
 
