@@ -193,8 +193,11 @@ function data()
 			-- 	debugPrint({"guiHandleEvent", id, name, param})
 			-- end
 			
-			-- Track build costs scaling.
-			if (id == "trackBuilder" or id == "streetBuilder") and (name == "builder.proposalCreate" or name == "builder.apply") and config.get().scaleEdgeCosts then
+			-- Track, road, signal, waypoint, road station: build costs scaling.
+			if (id == "trackBuilder" or id == "streetBuilder" or id == "streetTerminalBuilder") and
+				(name == "builder.proposalCreate" or name == "builder.apply") and
+				config.get().scaleEdgeCosts then
+
 				-- if name == "builder.apply" then
 				-- 	debugPrint({"builder apply", param})
 				-- end
@@ -223,11 +226,15 @@ function data()
 			-- 	debugPrint({"handleEvent", src, id, name, param})
 			-- end
 
-			-- Support for auto-parallel tracks mod.
-			if id == "__ptracks__" and name == "costs" and param.costs and config.get().scaleEdgeCosts then
+			-- Support for Auto-Parallel Tracks and AutoSig mods.
+			if (id == "__ptracks__" or id == "__autosig2__") and name == "costs" and param.costs and config.get().scaleEdgeCosts then
 				local mult = getVehicleMultCalculator():getMultiplier(Category.RAIL, game.interface.getGameTime().date.year)
 				if mult > 1 then
-					bookExtraBuildCosts(math.floor(param.costs * (mult - 1)), journal_util.Enum.Carrier.RAIL, journal_util.Enum.Construction.TRACK)
+					local constr = (id == "__ptracks__")
+						and journal_util.Enum.Construction.TRACK
+						or journal_util.Enum.Construction.SIGNAL
+						
+					bookExtraBuildCosts(math.floor(param.costs * (mult - 1)), journal_util.Enum.Carrier.RAIL, constr)
 				end
 			end
 		end

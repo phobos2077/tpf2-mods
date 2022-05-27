@@ -119,7 +119,7 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_air tip"] = maintMultTip.en("Air"),
 
 			["param scale_edge_costs"] = "Scale Track/Road build costs",
-			["param scale_edge_costs tip"] = "Track/Road build costs will dynamically scale along with buildings.",
+			["param scale_edge_costs tip"] = "Build costs of tracks, roads, waypoints, signals and road stops will dynamically scale just like stations.",
 		},
 
 		de = {
@@ -233,7 +233,7 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_air tip"] = "",
 
 			["param scale_edge_costs"] = "Baukosten für Gleise und Straßen skalieren",
-			["param scale_edge_costs tip"] = "",
+			["param scale_edge_costs tip"] = "Die Kosten für den Bau von Strecken, Straßen, Wegpunkten, Signalen und Straßenstationen werden dynamisch zusammen mit den Gebäuden skaliert.",
 		},
 
 		ru ={
@@ -331,7 +331,7 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_air tip"] = "",
 
 			["param scale_edge_costs"] = "Масштабировать стоим. строит. путей и дорог",
-			["param scale_edge_costs tip"] = "",
+			["param scale_edge_costs tip"] = "Стоимость путей, дорог, путевых точек, сигналов и остановок будет масштабироваться также как и другие строения.",
 		}
 	}
 end

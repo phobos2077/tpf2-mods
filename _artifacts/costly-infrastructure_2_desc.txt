@@ -1,0 +1,75 @@
+Ever get bothered by the fact that costs of infrastructure become so low compared to the rising costs of vehicles? This is the mod for you!
+
+Dynamically increases maintenance and build costs of various pieces of infrastructure, such as tracks, stations, depots, etc.
+[list]
+[*]Build costs increase based on the vehicles available at current year.
+[*]Maintenance costs change based on intensity of use of stations.
+[*]Additionally, static cost multipliers are available for every type of infrastructure.
+[/list]
+
+This is aimed to achieve 2 goals:
+[list]
+[*]Make your late game a bit more interesting by challenging you to keep making your lines as profitable as possible.
+[*]Add to immersion and make maintenance costs actually tied to gameplay.
+[/list]
+
+
+The mod is structured into 3 parts.
+
+
+[h3]Part 1 - Base Cost Multipliers[/h3]
+These directly scale build and maintenance costs of all categories of infrastructure.
+These multipliers are static, once configured, they don't change during the game. But they multiply the effects of dynamic multipliers.
+
+
+[h3]Part 2 - Dynamic Build Costs[/h3]
+Build costs of all stations and depos are scaled based on current vehicle power rating. This rating is calculated as follows:
+[list]
+[*]All vehicles available for purchase based on current year are taken and separated by categories (road, rail, water and air).
+[*]For every vehicle a power rating is calculated. For locomotives, this is engine power. For all other types it's max speed times capacity.
+[*]Highest score value is used in formula where 1 corresponds to some of the weakest vehicles and Build Cost Max - to some of the strongest.
+This formula is non-linear, making the cost curve itself a bit more linear.
+[/list]
+
+If you increase Base Cost Multiplier for category of infrastructure, it will multiply the result of dynamic scaling.
+For example, if you set Road Base Cost to 200% and Road Build Cost Max to 5x, final price upper limit will be 10x.
+
+
+[h3]Part 3 - Usage-based Infrastructure Costs[/h3]
+Maintenance costs are scaled independently from build costs and instead use a different formula:
+[list]
+[*]Total Capacity of all your stations for given category is calculated.
+[*]Total Line Rates is calculated as sum of Rate value (as seen in UI) multiplied by number of stops.
+[*]Final multiplier = (Total Rates / Total Capacity) * mult, where mult is configurable value per category.
+[/list]
+Base value for maintenance costs is 10% of purchase cost, just like in vanilla game.
+But it is affected by Base Cost Multipliers and is scaled independently from build cost.
+
+
+[h3]Compatibility with new Advanced Settings (Spring 2022 Update)[/h3]
+[list]
+[*]Infrastructure Build Costs should work as you expect and act as additional multiplier on top of Cost setting. But it's recommended to set it to 100% to simplify the math.
+[*]Infrastructure Maintenance Costs MUST be set at 100% in Advanced Settings, otherwise calculations for extra maintenance costs will be slightly off the expected value.
+[/list]
+
+
+[h3]If you use AutoSig or Auto-Parallel Tracks mod...[/h3]
+Please, use these modified versions if you want to prevent cheating (by default extra signals and tracks are free with these mods):
+https://steamcommunity.com/workshop/filedetails/discussion/2138210967/3387282447744159286/
+https://steamcommunity.com/workshop/filedetails/discussion/2138212041/3387282447742132149/
+
+
+[h3]Known issues/limitations[/h3]
+[list]
+[*]Red floating numbers will keep showing the original unmodified maintenance costs. Rest assured, additional fees will be deducted from your account behind the scenes. You can monitor this in Finances window.
+[*]Refund amounts for individual station modules will still be based on original (lower) module price, so you might get much less money back than you expect. This is also modding API limitation.
+[*]If you add this mod to existing game where you set Maintenance Cost to something other than 100% and built a bunch of infrastructure, the calculations will be slightly off (in higher or lower direction) because of how the mod works.
+[/list]
+
+
+[h3]Other economy mods you might want to check out[/h3]
+Original version of the mod, based on "Inflation" curve:
+https://steamcommunity.com/sharedfiles/filedetails/?id=2798809680
+
+Progressive Income/Profit Tax:
+https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
