@@ -26,4 +26,10 @@ function world_util.getWorldSize()
 	}
 end
 
+local cachedWorldSize
+function world_util.getWorldSizeCached()
+	cachedWorldSize = cachedWorldSize or world_util.getWorldSize()
+	return cachedWorldSize
+end
+
 return world_util

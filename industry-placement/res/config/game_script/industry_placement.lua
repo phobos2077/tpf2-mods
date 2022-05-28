@@ -3,7 +3,7 @@ local vector2 = require "industry_placement/lib/vector2"
 local world_util = require "industry_placement/world_util"
 local industry = require "industry_placement/industry"
 local cluster_gui = require "industry_placement/cluster_gui"
-
+local cluster_config = require "industry_placement/cluster_config"
 
 -- CONSTANTS
 local PROCESS_INTERVAL = 10 -- in game time
@@ -131,6 +131,18 @@ local function getUniqueIndustryName(fileName, idsByFileName, closestTown)
 	return industryName
 end
 
+---@param clusterData ClusterData
+---@return number[] pos
+local function getRandomPointInCluster(clusterData)
+	local industrySize = {industry.INDUSTRY_RADIUS, industry.INDUSTRY_RADIUS}
+	local paddedSize = vector2.sub(clusterData.size, industrySize)
+	if clusterData.shape == cluster_config.ClusterShape.Ellipse then
+		return vector2.randomPointInEllipse(clusterData.pos, paddedSize)
+	else
+		return vector2.add(clusterData.pos, vector2.mul(paddedSize, {math.random(), math.random()}))
+	end
+end
+
 local function tryPlaceIndustry(fileName, clustersByCategory, idsByFileName)
 	local category = industry.getIndustryCategoryByFileName(fileName)
 	local clusterList = clustersByCategory[category]
@@ -138,6 +150,7 @@ local function tryPlaceIndustry(fileName, clustersByCategory, idsByFileName)
 		print("No clusters for category "..category.." to spawn "..fileName.."!")
 		return false
 	end
+	-- TODO: use FREE area of clusters
 	local totalArea = table_util.sum(clusterList, function(cluster) return cluster.area end)
 	local validPosition
 	local lastPos
@@ -153,7 +166,7 @@ local function tryPlaceIndustry(fileName, clustersByCategory, idsByFileName)
 			end
 		end
 	
-		local pos = vector2.randomPointInCircle(targetCluster.pos, targetCluster.radius - industry.INDUSTRY_RADIUS)
+		local pos = getRandomPointInCluster(targetCluster)
 		lastPos = api.type.Vec3f.new(pos[1], pos[2], api.engine.terrain.getBaseHeightAt(api.type.Vec2f.new(pos[1], pos[2])))
 		if validateIndustryPlacement(fileName, lastPos) then
 			validPosition = lastPos

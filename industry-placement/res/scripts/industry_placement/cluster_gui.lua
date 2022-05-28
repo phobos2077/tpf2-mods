@@ -1,11 +1,13 @@
-local zoneutil = require "mission/zone"
 local table_util = require "industry_placement/lib/table_util"
 local vector2 = require "industry_placement/lib/vector2"
 local industry = require "industry_placement/industry"
+local world_util = require "industry_placement/world_util"
+local cluster_config = require "industry_placement/cluster_config"
 
 local cluster_gui = {}
 
 local IndustryCategory = industry.Category
+local ClusterShape = cluster_config.ClusterShape
 
 -- CONSTANTS
 
@@ -16,8 +18,8 @@ local CLUSTER_ZONE_COLORS = {
 	[IndustryCategory.Iron] = {0.5,0.25,0,1},
 	[IndustryCategory.Stone] = {0.65,0.65,0.65,1},
 	[IndustryCategory.Crude] = {0.7,0.21,0.47,1},
-	[IndustryCategory.Forest] = {0.68,0.49,0.36,1},
-	[IndustryCategory.Distribution] = {0.13,0.58,0.62,1},
+	[IndustryCategory.Forest] = {0.95,0.49,0.36,1},
+	[IndustryCategory.Distribution] = {0.13,0.58,0.82,1},
 }
 local ENTITY_VIEW_EVENT_EXP = "^temp%.view%.entity_(%d+)"
 
@@ -27,11 +29,39 @@ local guiQueue = {}
 local clusterZones = {}
 local clustersByCategory = {}
 
+local function makeEllipseZone(pos, size)
+	local num = math.pi * (size[1] + size[2])/50
+	local result = { }
+	for i = 1, num do
+		local s = 2.0 * math.pi * (i - 1) / num
+		result[i] = { pos[1] + size[1] * math.cos(s), pos[2] + size[2] * math.sin(s) }
+	end
+	return result
+end
+
+local function makeRectZone(pos, size)
+	local result = {
+		vector2.add(pos, vector2.mul(size, {1, 1})),
+		vector2.add(pos, vector2.mul(size, {1, -1})),
+		vector2.add(pos, vector2.mul(size, {-1, -1})),
+		vector2.add(pos, vector2.mul(size, {-1, 1})),
+	}
+	return result
+end
+
+---@param clusterData ClusterData
+local function makeClusterPolygon(clusterData)
+	if clusterData.shape == ClusterShape.Ellipse then
+		return makeEllipseZone(clusterData.pos, clusterData.size)
+	else
+		return makeRectZone(clusterData.pos, clusterData.size)
+	end
+end
 
 ---@param clusterData ClusterData
 local function setClusterZone(id, clusterData)
 	local zoneData = clusterData and {
-		polygon = zoneutil.makeCircleZone(clusterData.pos, clusterData.radius),
+		polygon = makeClusterPolygon(clusterData),
 		draw = true,
 		drawColor = CLUSTER_ZONE_COLORS[clusterData.cat] or {1,0,1,1}
 	} or nil
@@ -46,13 +76,31 @@ local function clearClusterZones()
 	end
 end
 
+local function checkCollision(o1, o2)
+	local min1 = vector2.sub(o1.pos, o1.size)
+	local max1 = vector2.add(o1.pos, o1.size)
+	local min2 = vector2.sub(o2.pos, o2.size)
+	local max2 = vector2.add(o2.pos, o2.size)
+	return
+		max1[1] > min2[1] and max1[2] > min2[2] and
+		min1[1] < max2[1] and min1[2] < max2[2]
+end
 
 local function validateClusterPlacement(clusterData, param)
-	if clustersByCategory[clusterData.cat] then
+	local worldMax = vector2.mul(world_util.getWorldSizeCached(), 500)
+	local worldMin = vector2.mul(worldMax, -1)
+	local clusterMax = vector2.add(clusterData.pos, clusterData.size)
+	local clusterMin = vector2.sub(clusterData.pos, clusterData.size)
+	if clusterMin[1] < worldMin[1] or clusterMin[2] < worldMin[2] or
+	   clusterMax[1] > worldMax[1] or clusterMax[2] > worldMax[2] then
+		param.data.errorState.critical = true
+		param.data.errorState.messages = {_("Cluster outside of world")}
+	elseif clustersByCategory[clusterData.cat] then
 		for k, otherClusterData in pairs(clustersByCategory[clusterData.cat]) do
-			if vector2.distance(clusterData.pos, otherClusterData.pos) < clusterData.radius + otherClusterData.radius then
+			if checkCollision(clusterData, otherClusterData) then
 				param.data.errorState.critical = true
-				param.data.errorState.messages = {_("Cluster Collision")}
+				param.data.errorState.messages = {_("Cluster collision")}
+				break
 			end
 		end
 	end
@@ -61,8 +109,9 @@ end
 local function validateIndustryPlacement(con)
 	local category = industry.getIndustryCategoryByFileName(con.fileName)
 	if category ~= IndustryCategory.Other and clustersByCategory[category] then
+		local industryData = {pos = con.transf:cols(3), size = {industry.INDUSTRY_RADIUS, industry.INDUSTRY_RADIUS}}
 		for k, clusterData in pairs(clustersByCategory[category]) do
-			if vector2.distance(con.transf:cols(3), clusterData.pos) > clusterData.radius - industry.INDUSTRY_RADIUS then
+			if checkCollision(industryData, clusterData) then
 				param.data.errorState.critical = true
 				param.data.errorState.messages = {_("Outside of cluster")}
 			end
@@ -98,7 +147,8 @@ function cluster_gui.guiHandleEvent(id, name, param)
 					validateClusterPlacement(clusterData, param)
 				elseif name == "builder.apply" then
 					local clusterData = industry.getClusterDataFromConstruction(con)
-					local otherClusters = clustersByCategory[clusterData.cat]
+					local otherClusters = clustersByCategory[clusterData.cat] or {}
+					clustersByCategory[clusterData.cat] = otherClusters
 					otherClusters[#otherClusters+1] = clusterData
 					setClusterZone(param.result[1], clusterData)
 				end

@@ -1,23 +1,13 @@
 local table_util = require "industry_placement/lib/table_util"
+local cluster_config = require "industry_placement/cluster_config"
 
 local industry = {}
 
-local IndustryCategory = {
-	Other = 1,
-	Coal = 2,
-	Iron = 3,
-	Stone = 4,
-	Crude = 5,
-	Forest = 6,
-	Distribution = 7
-}
+local IndustryCategory = cluster_config.IndustryCategory
 
 industry.Category = IndustryCategory
 
-
 local INDUSTRY_RADIUS = 150
-
-local CLUSTER_RADIUSES = { 200, 400, 800, 1600, 3200 }
 
 -- TODO: detect data by installed mods
 local INDUSTRY_DATA = require "industry_placement/industry_data/vanilla"
@@ -40,6 +30,42 @@ local INDUSTRY_CLUSTER_FILENAME = "industry/industry_cluster.con"
 
 local function findAllConstructionIds()
 	return game.interface.getEntities({radius = 1e10}, {type = "CONSTRUCTION"})
+end
+
+local function getClusterArea(shape, size)
+	if shape == cluster_config.ClusterShape.Ellipse then
+		return math.pi * size[1] * size[2]
+	else
+		return size[1] * size[2]
+	end
+end
+
+---@param constr userdata
+---@param id number?
+---@return ClusterData
+function industry.getClusterDataFromConstruction(constr, id)
+	if not (constr.params and constr.params.clusterCategory) then
+		printPrint({"! ERROR ! Invalid cluster construction params: ", constr.params})
+		return nil
+	end
+	local actualParams = cluster_config.getActualParams(constr.params)
+	local category = actualParams.clusterCategory
+	local size = {actualParams.clusterSizeX, actualParams.clusterSizeY}
+	---@type ClusterShape
+	local shape = actualParams.clusterShape
+	local vec4 = constr.transf:cols(3)
+	---@type Vec3f
+	local position = api.type.Vec3f.new(vec4[1], vec4[2], vec4[3])
+	---@class ClusterData
+	local data = {
+		id = id,
+		cat = category,
+		pos = position,
+		shape = shape,
+		size = size,
+		area = getClusterArea(shape, size)
+	}
+	return data
 end
 
 ---@return ClusterData[]
@@ -118,29 +144,6 @@ function industry.getIndustryCategoryByFileName(fileName)
 	return CATEGORY_BY_OUTPUT[firstOutput] or IndustryCategory.Other
 end
 
----@param constr userdata
----@param id number?
----@return ClusterData
-function industry.getClusterDataFromConstruction(constr, id)
-	if not (constr.params and constr.params.clusterCategory) then
-		printPrint({"! ERROR ! Invalid cluster construction params: ", constr.params})
-		return nil
-	end
-	local category = constr.params.clusterCategory + 1
-	local radius = constr.params.clusterRadius and CLUSTER_RADIUSES[constr.params.clusterRadius+1] or 400
-	local vec4 = constr.transf:cols(3)
-	---@type Vec3f
-	local position = api.type.Vec3f.new(vec4[1], vec4[2], vec4[3])
-	---@class ClusterData
-	local data = {
-		id = id,
-		pos = position,
-		cat = category,
-		radius = radius,
-		area = math.pi*radius*radius
-	}
-	return data
-end
 
 industry.INDUSTRY_DATA = INDUSTRY_DATA
 

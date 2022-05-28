@@ -37,4 +37,13 @@ function vector2.randomPointInCircle(pos, radius)
 	}
 end
 
+function vector2.randomPointInEllipse(pos, size)
+	local r = math.sqrt(math.random())
+	local theta = math.random() * 2 * math.pi
+	return {
+		pos[1] + size[1] * r * math.cos(theta),
+		pos[2] + size[2] * r * math.sin(theta)
+	}
+end
+
 return vector2

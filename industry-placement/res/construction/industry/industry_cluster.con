@@ -2,8 +2,11 @@ local constructionutil = require "constructionutil"
 local paramsutil = require "paramsutil"
 local vec3 = require "vec3"
 local transf = require "transf"
+local cluster_config = require "industry_placement/cluster_config"
 
 function data()
+
+debugPrint(cluster_config.makeParams())
 
 return {
 	type = "INDUSTRY",
@@ -24,20 +27,7 @@ return {
 	},
 	availability = { },
 	categories = {"misc"},
-	params = {
-		{
-			key = "clusterCategory",
-			name = _("Industry Category"),
-			values = { _("Other"), _("Coal"), _("Iron"), _("Stone"), _("Oil"), _("Forest"), _("Distribution") },
-			defaultIndex = 0
-		},
-		{
-			key = "clusterRadius",
-			name = _("Cluster Radius"),
-			values = { "200", "400", "800", "1600", "3200" },
-			defaultIndex = 2
-		},
-	},
+	params = cluster_config.makeParams(),
 	placementParams = {
 		buildOrder = 0,
 		initWeight = 0,
