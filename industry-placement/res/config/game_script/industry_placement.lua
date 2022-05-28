@@ -1,5 +1,6 @@
 local table_util = require "industry_placement/lib/table_util"
 local vector2 = require "industry_placement/lib/vector2"
+local log_util = require "industry_placement/lib/log_util"
 local world_util = require "industry_placement/world_util"
 local industry = require "industry_placement/industry"
 local cluster_gui = require "industry_placement/cluster_gui"
@@ -7,10 +8,12 @@ local cluster_config = require "industry_placement/cluster_config"
 
 -- CONSTANTS
 local PROCESS_INTERVAL = 10 -- in game time
-local MAX_PLACEMENT_ATTEMPTS = 10
+local MAX_PLACEMENTS_AT_ONCE = 20
+local MAX_POSITION_ATTEMPTS = 10
 local MAX_HEIGHT_DIFF = 30
 local MIN_INDUSTRY_SPACING = 300
 local SPAWN_PROB = 0.1
+local LOG_TAG = "Industry Placement"
 
 local IndustryCategory = cluster_config.IndustryCategory
 
@@ -22,12 +25,15 @@ local state = {
 	-- clusterZones = {}
 }
 
+local pendingProcess = false
 
 -- FUNCTIONS
 
-local function placeIndustryProposal(fileName, name, pos)
+local function placeIndustryProposalConstruction(fileName, name, pos)
 	local newCon = api.type.SimpleProposal.ConstructionEntity.new()
 	newCon.fileName = fileName
+
+	-- TODO: pass default param values?
 	newCon.params = {seed = 0}
 	newCon.name = name
 	newCon.transf = api.type.Mat4f.new(
@@ -37,8 +43,13 @@ local function placeIndustryProposal(fileName, name, pos)
 		api.type.Vec4f.new(pos[1], pos[2], pos[3], 1))
 
 	-- newCon.playerEntity = api.engine.util.getPlayer()
+
+	return newCon
+end
+
+local function placeIndustryProposal(fileName, name, pos)
 	local proposal = api.type.SimpleProposal.new()
-	proposal.constructionsToAdd[1] = newCon
+	proposal.constructionsToAdd[1] = placeIndustryProposalConstruction(fileName, name, pos)
 
 	local context = api.type.Context:new()
 	-- context.checkTerrainAlignment = true
@@ -49,10 +60,20 @@ local function placeIndustryProposal(fileName, name, pos)
 	return proposal, context
 end
 
-local function validateIndustryPlacement(fileName, pos)
-	-- Validate distance to other industries
+local function validateIndustryPlacement(fileName, pos, pendingPositions)
+	local LOG_TAG = "validateIndustryPlacement"
+
+	-- Validate distance to other industries in proposal
+	for i, otherPos in ipairs(pendingPositions) do
+		if vector2.distance(pos, otherPos) < MIN_INDUSTRY_SPACING then
+			log_util.logFormat(LOG_TAG, "FAIL: Found another industry in proposal at position (%.0f, %.0f)", pos[1], pos[2])
+			return false	
+		end
+	end
+
+	-- Validate distance to other industries in world
 	if world_util.anyConstructionInRadius(pos, MIN_INDUSTRY_SPACING) then
-		print("validateIndustryPlacement: FALSE, found another industry at position "..pos[1]..","..pos[2])
+		log_util.logFormat(LOG_TAG, "FAIL: Found another industry in world at position (%.0f, %.0f)", pos[1], pos[2])
 		return false
 	end
 
@@ -71,7 +92,7 @@ local function validateIndustryPlacement(fileName, pos)
 
 	local heightDiff = heightPoints[#heightPoints] - heightPoints[1]
 	if heightDiff > MAX_HEIGHT_DIFF then
-		print("validateIndustryPlacement: FALSE, height diff is "..heightDiff)
+		log_util.logFormat(LOG_TAG, "FAIL: Height diff is %.0f", heightDiff)
 		return false
 	end
 
@@ -81,21 +102,9 @@ local function validateIndustryPlacement(fileName, pos)
 	local errState = proposalData.errorState
 	local result = not (errState.critical or false) and not (errState.messages and #errState.messages > 0 or false)
 	if not result then
-		debugPrint("validateIndustryPlacement: FALSE, error: "..(errState.messages and errState.messages[1] or "none")..", critical: "..tostring(errState.critical))
+		log_util.logFormat(LOG_TAG, "FAIL: proposal error: %s, critical: %s", errState.messages and errState.messages[1], errState.critical)
 	end
 	return result
-end
-
-local function createIndustry(fileName, name, pos, onComplete)
-	local proposal, context = placeIndustryProposal(fileName, name, pos)
-	debugPrint({"createIndustry", fileName, name, pos})
-	api.cmd.sendCommand(api.cmd.make.buildProposal(proposal, context, true), function(cmd, result)
-		if result then
-			onComplete()
-		else
-			print("! ERROR ! Creating industry:"..cmd.resultProposalData.errorState.message)
-		end
-	end)
 end
 
 local function getIndustryRes(fileName)
@@ -131,7 +140,8 @@ local function getUniqueIndustryName(fileName, indsByFileName, closestTown)
 
 	-- Find unique name
 	local otherIndustryNames = otherIndustries and table_util.mapDict(otherIndustries, function (data)
-		return api.engine.getComponent(data.id, api.type.ComponentType.NAME).name, true
+		local name = data.name and data.name or api.engine.getComponent(data.id, api.type.ComponentType.NAME).name
+		return name, true
 	end) or {}
 	local i = 1
 	while otherIndustryNames[industryName] and i < 99 do
@@ -179,7 +189,7 @@ local function randomPointInWorldGenerator()
 	end
 end
 
-local function findValidPositionForIndustry(fileName, clustersByCategory)
+local function findValidPositionForIndustry(fileName, clustersByCategory, pendingPositions)
 	local category = industry.getIndustryCategoryByFileName(fileName)
 	local clusterList = clustersByCategory[category]
 	local randomPointGenerator
@@ -189,47 +199,35 @@ local function findValidPositionForIndustry(fileName, clustersByCategory)
 		if category == IndustryCategory.Other then
 			randomPointGenerator = randomPointInWorldGenerator()
 		else
-			print("No clusters for category "..category.." to spawn "..fileName.."!")
+			log_util.logErrorFormat(LOG_TAG, "No clusters for category %s to spawn %s !", category, fileName)
 			return false
 		end
 	end
 	local validPosition
 	local lastPos
-	for i = 1, MAX_PLACEMENT_ATTEMPTS, 1 do
+	for i = 1, MAX_POSITION_ATTEMPTS, 1 do
 		local pos = randomPointGenerator()
 		lastPos = api.type.Vec3f.new(pos[1], pos[2], api.engine.terrain.getBaseHeightAt(api.type.Vec2f.new(pos[1], pos[2])))
-		if validateIndustryPlacement(fileName, lastPos) then
+		if validateIndustryPlacement(fileName, lastPos, pendingPositions) then
 			validPosition = lastPos
 			break
 		end
 	end
 	if not validPosition then
-		print("Failed to find valid position for "..fileName.." after "..MAX_PLACEMENT_ATTEMPTS.." attempts!")
+		log_util.logErrorFormat(LOG_TAG, "Failed to find valid position for %s after %d attempts!", fileName, MAX_POSITION_ATTEMPTS)
 		debugPrint(lastPos)
 		return false
 	end
 	return validPosition
 end
 
-local function tryPlaceIndustry(fileName, clustersByCategory, indsByFileName)
-	local validPosition = findValidPositionForIndustry(fileName, clustersByCategory)
-	if not validPosition then return false end
-
-	local closestTown = world_util.getClosestTown(validPosition)
-	local industryName = getUniqueIndustryName(fileName, indsByFileName, closestTown)
-	createIndustry(fileName, industryName, validPosition, function()
-		print("Created "..fileName.." Successfully!")
-		if closestTown then
-			api.cmd.sendCommand(api.cmd.make.connectTownsAndIndustries({closestTown.id}, {}, true), function(cmd, res)
-				print("Connect town "..closestTown.name.." : "..tostring(res))
-			end)
-		end
-	end)
-	return true
-end
-
 
 local function processIndustries()
+	if pendingProcess then
+		log_util.log(LOG_TAG, "Trying to process industries before previous commands completed, failing...")
+		return false
+	end
+
 	local allIndustries = industry.findAllPlaceableIndustriesOnMap()
 
 	local totalIndustryNum = #allIndustries
@@ -240,25 +238,69 @@ local function processIndustries()
 
 	local immediateSpawnTargetNum = math.floor(targetTotalNum / 2)
 
-	debugPrint({"target data", worldSizeSqKm, targetDensity, targetTotalNum, totalIndustryNum, immediateSpawnTargetNum})
+	local toCreateNum = (totalIndustryNum < immediateSpawnTargetNum and math.min(immediateSpawnTargetNum - totalIndustryNum, MAX_PLACEMENTS_AT_ONCE))
+		or (totalIndustryNum < targetTotalNum and math.random() < SPAWN_PROB and 1)
+		or 0
 
-	local needToSpawn = (totalIndustryNum < immediateSpawnTargetNum) or (totalIndustryNum < targetTotalNum and math.random() < SPAWN_PROB)
-	if not needToSpawn then
+	debugPrint({"target data", worldSizeSqKm, targetDensity, targetTotalNum, totalIndustryNum, immediateSpawnTargetNum, toCreateNum})
+
+	if toCreateNum <= 0 then
 		return
 	end
 
 	local clustersByCategory = table_util.igroupBy(industry.findAllClustersOnMap(), function(cd) return cd.cat end)
 	local industriesByFileName = table_util.igroupBy(allIndustries, function(data) return data.fileName end)
-	local selectedFileName = selectIndustryToPlace(industriesByFileName, targetTotalNum)
-	if not selectedFileName then
-		print("! ERROR ! Failed to select industry type!")
-		return
-	end
+	local townIdsSet = {}
+
+	local prepareTimer = log_util.timer()
+	local proposal = api.type.SimpleProposal.new()
+	local pendingPositions = {}
+	for i = 1, toCreateNum, 1 do
+		local fileName = selectIndustryToPlace(industriesByFileName, targetTotalNum)
+		if not fileName then
+			log_util.logError(LOG_TAG, "Failed to select industry type!")
+			break
+		end
+		
+		-- If selected, spawn industry in random position.
+		local industryPosition = findValidPositionForIndustry(fileName, clustersByCategory, pendingPositions)
+		if not industryPosition then break end
 	
-	-- If selected, spawn industry in random position.
-	local timer = os.clock()
-	local placed = tryPlaceIndustry(selectedFileName, clustersByCategory, industriesByFileName)
-	print(string.format("Requested place industry in %.0f ms : %s", os.clock() - timer, tostring(placed)))
+		local closestTown = world_util.getClosestTown(industryPosition)
+		local industryName = getUniqueIndustryName(fileName, industriesByFileName, closestTown)
+
+		local proposalCon = placeIndustryProposalConstruction(fileName, industryName, industryPosition)
+		proposal.constructionsToAdd[#proposal.constructionsToAdd+1] = proposalCon
+		if closestTown then
+			townIdsSet[closestTown.id] = true
+		end
+		industriesByFileName[fileName] = industriesByFileName[fileName] or {}
+		table.insert(industriesByFileName[fileName], proposalCon)
+		pendingPositions[#pendingPositions+1] = industryPosition
+	end
+	log_util.logFormatTimer(LOG_TAG, "Prepared %d industries for proposal", #proposal.constructionsToAdd, prepareTimer)
+
+	if #proposal.constructionsToAdd > 0 then
+		pendingProcess = true
+		local buildCmdTimer = log_util.timer()
+		api.cmd.sendCommand(api.cmd.make.buildProposal(proposal, nil, true), function(cmd, success)
+			if success then
+				log_util.logFormatTimer(LOG_TAG, "Build proposal succeeded!", buildCmdTimer)
+				local townIdsList = table_util.tableKeys(townIdsSet)
+				if #townIdsList > 0 then
+					local connectCmdTimer = log_util.timer()
+					api.cmd.sendCommand(api.cmd.make.connectTownsAndIndustries(townIdsList, {}, true), function(cmd2, success2)
+						log_util.logFormatTimer(LOG_TAG, "Connected %d towns to industries: %s", #townIdsList, success2, buildCmdTimer)
+						pendingProcess = false
+					end)
+				else
+					pendingProcess = false
+				end
+			else
+				log_util.logErrorFormat(LOG_TAG, "Creating industries: %s", cmd.resultProposalData.errorState.message)
+			end
+		end)
+	end
 end
 
 
