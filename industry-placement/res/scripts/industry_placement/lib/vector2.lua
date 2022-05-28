@@ -46,4 +46,8 @@ function vector2.randomPointInEllipse(pos, size)
 	}
 end
 
+function vector2.randomPointInBox(pos, size)
+	return vector2.add(pos, vector2.mul(size, {math.random(), math.random()}))
+end
+
 return vector2

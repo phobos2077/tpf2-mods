@@ -1,5 +1,6 @@
 local table_util = require "industry_placement/lib/table_util"
 local vector2 = require "industry_placement/lib/vector2"
+local box2 = require "industry_placement/lib/box2"
 local industry = require "industry_placement/industry"
 local world_util = require "industry_placement/world_util"
 local cluster_config = require "industry_placement/cluster_config"
@@ -27,6 +28,7 @@ local ENTITY_VIEW_EVENT_EXP = "^temp%.view%.entity_(%d+)"
 -- VARIABLES
 local guiQueue = {}
 local clusterZones = {}
+---@type table<number, ClusterData[]>
 local clustersByCategory = {}
 
 local function makeEllipseZone(pos, size)
@@ -76,28 +78,17 @@ local function clearClusterZones()
 	end
 end
 
-local function checkCollision(o1, o2)
-	local min1 = vector2.sub(o1.pos, o1.size)
-	local max1 = vector2.add(o1.pos, o1.size)
-	local min2 = vector2.sub(o2.pos, o2.size)
-	local max2 = vector2.add(o2.pos, o2.size)
-	return
-		max1[1] > min2[1] and max1[2] > min2[2] and
-		min1[1] < max2[1] and min1[2] < max2[2]
-end
-
+---@param clusterData ClusterData
+---@param param userdata
 local function validateClusterPlacement(clusterData, param)
-	local worldMax = vector2.mul(world_util.getWorldSizeCached(), 500)
-	local worldMin = vector2.mul(worldMax, -1)
-	local clusterMax = vector2.add(clusterData.pos, clusterData.size)
-	local clusterMin = vector2.sub(clusterData.pos, clusterData.size)
-	if clusterMin[1] < worldMin[1] or clusterMin[2] < worldMin[2] or
-	   clusterMax[1] > worldMax[1] or clusterMax[2] > worldMax[2] then
+	local worldHalfSize = vector2.mul(world_util.getWorldSizeCached(), 500)
+	local worldBox = box2.fromPosAndSize({0, 0}, worldHalfSize)
+	if not worldBox:contains(clusterData.box) then
 		param.data.errorState.critical = true
 		param.data.errorState.messages = {_("Cluster outside of world")}
 	elseif clustersByCategory[clusterData.cat] then
 		for k, otherClusterData in pairs(clustersByCategory[clusterData.cat]) do
-			if checkCollision(clusterData, otherClusterData) then
+			if clusterData.box:intersects(otherClusterData.box) then
 				param.data.errorState.critical = true
 				param.data.errorState.messages = {_("Cluster collision")}
 				break
@@ -106,15 +97,20 @@ local function validateClusterPlacement(clusterData, param)
 	end
 end
 
-local function validateIndustryPlacement(con)
+local function validateIndustryPlacement(con, param)
 	local category = industry.getIndustryCategoryByFileName(con.fileName)
 	if category ~= IndustryCategory.Other and clustersByCategory[category] then
-		local industryData = {pos = con.transf:cols(3), size = {industry.INDUSTRY_RADIUS, industry.INDUSTRY_RADIUS}}
+		local industryBox = box2.fromPosAndSize(con.transf:cols(3), industry.INDUSTRY_SIZE)
+		local isFound = false
 		for k, clusterData in pairs(clustersByCategory[category]) do
-			if checkCollision(industryData, clusterData) then
-				param.data.errorState.critical = true
-				param.data.errorState.messages = {_("Outside of cluster")}
+			if clusterData.box:contains(industryBox) then
+				isFound = true
+				break
 			end
+		end
+		if not isFound then
+			param.data.errorState.critical = true
+			param.data.errorState.messages = {_("Outside of cluster")}
 		end
 	end
 end
@@ -153,7 +149,7 @@ function cluster_gui.guiHandleEvent(id, name, param)
 					setClusterZone(param.result[1], clusterData)
 				end
 			elseif con.fileName:find("^industry/") then
-				validateIndustryPlacement(con)
+				validateIndustryPlacement(con, param)
 			end
 		end
 	elseif id == "bulldozer" and name == "builder.apply" and #param.proposal.toRemove > 0 and clusterZones[param.proposal.toRemove[1]] then

@@ -6,7 +6,7 @@ local cluster_config = require "industry_placement/cluster_config"
 
 function data()
 
-debugPrint(cluster_config.makeParams())
+-- debugPrint(cluster_config.makeParams())
 
 return {
 	type = "INDUSTRY",

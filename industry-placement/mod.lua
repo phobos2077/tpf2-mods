@@ -50,9 +50,9 @@ function data()
 		},
 		runFn = function (settings, modParams)
 			--local params = modParams[getCurrentModId()]
-			-- game.config.sandboxButton = true
 			-- addModifier("loadConstruction", constructionMod)
 
+			game.config.industryButton = true
 			game.config.locations.industry.maxNumberPerArea = 0
 			game.config.locations.industry.absoluteMinimum = 0
 

@@ -9,7 +9,10 @@ local cluster_config = require "industry_placement/cluster_config"
 local PROCESS_INTERVAL = 10 -- in game time
 local MAX_PLACEMENT_ATTEMPTS = 10
 local MAX_HEIGHT_DIFF = 30
+local MIN_INDUSTRY_SPACING = 300
 local SPAWN_PROB = 0.1
+
+local IndustryCategory = cluster_config.IndustryCategory
 
 -- VARIABLES
 
@@ -47,7 +50,13 @@ local function placeIndustryProposal(fileName, name, pos)
 end
 
 local function validateIndustryPlacement(fileName, pos)
-	-- TODO: need to also prevent placement on very uneven terrain, such as on the mountain
+	-- Validate distance to other industries
+	if world_util.anyConstructionInRadius(pos, MIN_INDUSTRY_SPACING) then
+		print("validateIndustryPlacement: FALSE, found another industry at position "..pos[1]..","..pos[2])
+		return false
+	end
+
+	-- Validate terrain
 	local vec2c = api.type.Vec2f.new
 	local center = vec2c(pos[1], pos[2])
 	local dist = industry.INDUSTRY_RADIUS
@@ -66,6 +75,7 @@ local function validateIndustryPlacement(fileName, pos)
 		return false
 	end
 
+	-- Validate actual proposal
 	local proposal, context = placeIndustryProposal(fileName, "test", pos)
 	local proposalData = api.engine.util.proposal.makeProposalData(proposal, context)
 	local errState = proposalData.errorState
@@ -113,15 +123,15 @@ local function selectIndustryToPlace(indsByFileName, targetTotalNum)
 	return selectedFileName
 end
 
-local function getUniqueIndustryName(fileName, idsByFileName, closestTown)
-	local otherIndustryIds = idsByFileName[fileName]
+local function getUniqueIndustryName(fileName, indsByFileName, closestTown)
+	local otherIndustries = indsByFileName[fileName]
 	local resData = getIndustryRes(fileName)
 	local baseName = closestTown and string.format("%s %s", closestTown.name, resData.description.name) or resData.description.name
 	local industryName = baseName
 
 	-- Find unique name
-	local otherIndustryNames = otherIndustryIds and table_util.mapDict(otherIndustryIds, function (id)
-		return api.engine.getComponent(id, api.type.ComponentType.NAME).name, true
+	local otherIndustryNames = otherIndustries and table_util.mapDict(otherIndustries, function (data)
+		return api.engine.getComponent(data.id, api.type.ComponentType.NAME).name, true
 	end) or {}
 	local i = 1
 	while otherIndustryNames[industryName] and i < 99 do
@@ -134,27 +144,18 @@ end
 ---@param clusterData ClusterData
 ---@return number[] pos
 local function getRandomPointInCluster(clusterData)
-	local industrySize = {industry.INDUSTRY_RADIUS, industry.INDUSTRY_RADIUS}
-	local paddedSize = vector2.sub(clusterData.size, industrySize)
+	local paddedSize = vector2.sub(clusterData.size, industry.INDUSTRY_SIZE)
 	if clusterData.shape == cluster_config.ClusterShape.Ellipse then
 		return vector2.randomPointInEllipse(clusterData.pos, paddedSize)
 	else
-		return vector2.add(clusterData.pos, vector2.mul(paddedSize, {math.random(), math.random()}))
+		return vector2.randomPointInBox(clusterData.pos, paddedSize)
 	end
 end
 
-local function tryPlaceIndustry(fileName, clustersByCategory, idsByFileName)
-	local category = industry.getIndustryCategoryByFileName(fileName)
-	local clusterList = clustersByCategory[category]
-	if not clusterList then
-		print("No clusters for category "..category.." to spawn "..fileName.."!")
-		return false
-	end
+local function randomPointInClusterGenerator(clusterList)
 	-- TODO: use FREE area of clusters
 	local totalArea = table_util.sum(clusterList, function(cluster) return cluster.area end)
-	local validPosition
-	local lastPos
-	for i = 1, MAX_PLACEMENT_ATTEMPTS, 1 do
+	return function()
 		local target = math.random() * totalArea
 		local targetCluster
 		local sum = 0
@@ -166,7 +167,36 @@ local function tryPlaceIndustry(fileName, clustersByCategory, idsByFileName)
 			end
 		end
 	
-		local pos = getRandomPointInCluster(targetCluster)
+		return getRandomPointInCluster(targetCluster)
+	end
+end
+
+local function randomPointInWorldGenerator()
+	local worldSize = vector2.mul(world_util.getWorldSizeCached(), 500)
+	local paddedSize = vector2.sub(worldSize, industry.INDUSTRY_SIZE)
+	return function(s, v)
+		return vector2.randomPointInBox({0, 0}, paddedSize)
+	end
+end
+
+local function findValidPositionForIndustry(fileName, clustersByCategory)
+	local category = industry.getIndustryCategoryByFileName(fileName)
+	local clusterList = clustersByCategory[category]
+	local randomPointGenerator
+	if clusterList then
+		randomPointGenerator = randomPointInClusterGenerator(clusterList)
+	else
+		if category == IndustryCategory.Other then
+			randomPointGenerator = randomPointInWorldGenerator()
+		else
+			print("No clusters for category "..category.." to spawn "..fileName.."!")
+			return false
+		end
+	end
+	local validPosition
+	local lastPos
+	for i = 1, MAX_PLACEMENT_ATTEMPTS, 1 do
+		local pos = randomPointGenerator()
 		lastPos = api.type.Vec3f.new(pos[1], pos[2], api.engine.terrain.getBaseHeightAt(api.type.Vec2f.new(pos[1], pos[2])))
 		if validateIndustryPlacement(fileName, lastPos) then
 			validPosition = lastPos
@@ -178,9 +208,15 @@ local function tryPlaceIndustry(fileName, clustersByCategory, idsByFileName)
 		debugPrint(lastPos)
 		return false
 	end
+	return validPosition
+end
+
+local function tryPlaceIndustry(fileName, clustersByCategory, indsByFileName)
+	local validPosition = findValidPositionForIndustry(fileName, clustersByCategory)
+	if not validPosition then return false end
 
 	local closestTown = world_util.getClosestTown(validPosition)
-	local industryName = getUniqueIndustryName(fileName, idsByFileName, closestTown)
+	local industryName = getUniqueIndustryName(fileName, indsByFileName, closestTown)
 	createIndustry(fileName, industryName, validPosition, function()
 		print("Created "..fileName.." Successfully!")
 		if closestTown then
@@ -194,10 +230,10 @@ end
 
 
 local function processIndustries()
-	local clustersByCategory, industriesByFileName = industry.findAllIndustriesAndClustersOnMap()
+	local allIndustries = industry.findAllPlaceableIndustriesOnMap()
 
-	local totalIndustryNum = industriesByFileName._total
-	local worldSize = world_util.getWorldSize()
+	local totalIndustryNum = #allIndustries
+	local worldSize = world_util.getWorldSizeCached()
 	local worldSizeSqKm = worldSize[1] * worldSize[2]
 	local targetDensity = game.config.locations.industry.targetMaxNumberPerArea
 	local targetTotalNum = math.floor(worldSizeSqKm * targetDensity)
@@ -211,9 +247,11 @@ local function processIndustries()
 		return
 	end
 
+	local clustersByCategory = table_util.igroupBy(industry.findAllClustersOnMap(), function(cd) return cd.cat end)
+	local industriesByFileName = table_util.igroupBy(allIndustries, function(data) return data.fileName end)
 	local selectedFileName = selectIndustryToPlace(industriesByFileName, targetTotalNum)
 	if not selectedFileName then
-		debugPrint({"Failed to select industry type!", industriesByFileName, targetTotalNum})
+		print("! ERROR ! Failed to select industry type!")
 		return
 	end
 	
@@ -240,7 +278,7 @@ function data()
 			local curTime = game.interface.getGameTime().time
 			if not nextProcessing or curTime >= nextProcessing then
 				if nextProcessing then
-					math.randomseed(math.floor(curTime))
+					math.randomseed(math.floor(os.clock() * 1000))
 					processIndustries()
 				end
 				nextProcessing = curTime + PROCESS_INTERVAL
