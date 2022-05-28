@@ -28,4 +28,13 @@ function vector2.dot(a, b)
 	return a[1] * b[1] + a[2] * b[2]
 end
 
+function vector2.randomPointInCircle(pos, radius)
+	local r = (radius or 1) * math.sqrt(math.random())
+	local theta = math.random() * 2 * math.pi
+	return {
+		pos[1] + r * math.cos(theta),
+		pos[2] + r * math.sin(theta)
+	}
+end
+
 return vector2

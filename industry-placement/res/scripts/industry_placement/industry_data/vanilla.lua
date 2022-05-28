@@ -1,0 +1,18 @@
+return {
+	["industry/chemical_plant.con"] = {{distanceWeights={INPUT_OIL=-2,INPUT_PLASTIC=1},initWeight=1,tags={"INPUT_OIL"},buildOrder=14},{PLASTIC=1}},
+	["industry/coal_mine.con"] = {{distanceWeights={INPUT_COAL=1,TOWN=-1},initWeight=4,buildOrder=11},{COAL=1}},
+	["industry/construction_material.con"] = {{distanceWeights={INPUT_CONSTRUCTION_MATERIALS=1,INPUT_STONE=-2},initWeight=1,tags={"INPUT_STONE"},buildOrder=3},{CONSTRUCTION_MATERIALS=1}},
+	["industry/farm.con"] = {{distanceWeights={INPUT_GRAIN=1,TOWN=-1},initWeight=4,tags={},buildOrder=2},{GRAIN=1}},
+	["industry/food_processing_plant.con"] = {{distanceWeights={INPUT_FOOD=1,INPUT_GRAIN=-2},initWeight=1,tags={"INPUT_GRAIN"},buildOrder=1},{FOOD=1}},
+	["industry/forest.con"] = {{distanceWeights={INPUT_LOGS=1,TOWN=-1},initWeight=4,buildOrder=8},{LOGS=1}},
+	["industry/fuel_refinery.con"] = {{distanceWeights={INPUT_OIL=-2,INPUT_FUEL=1},initWeight=1,tags={"INPUT_OIL"},buildOrder=13},{FUEL=1}},
+	["industry/goods_factory.con"] = {{distanceWeights={INPUT_GOODS=1,INPUT_PLASTIC=-1,INPUT_STEEL=-1},initWeight=1,tags={"INPUT_PLASTIC","INPUT_STEEL"},buildOrder=9},{GOODS=1}},
+	["industry/iron_ore_mine.con"] = {{distanceWeights={INPUT_IRON_ORE=1,TOWN=-1},initWeight=4,buildOrder=12},{IRON_ORE=1}},
+	["industry/machines_factory.con"] = {{distanceWeights={INPUT_PLANKS=-1,INPUT_MACHINES=1,INPUT_STEEL=-1},initWeight=1,tags={"INPUT_PLANKS","INPUT_STEEL"},buildOrder=6},{MACHINES=1}},
+	["industry/oil_refinery.con"] = {{distanceWeights={INPUT_CRUDE=-2,INPUT_OIL=1},initWeight=2,tags={"INPUT_CRUDE"},buildOrder=15},{OIL=1}},
+	["industry/oil_well.con"] = {{distanceWeights={INPUT_CRUDE=1,TOWN=-1},initWeight=4,buildOrder=16},{CRUDE=1}},
+	["industry/quarry.con"] = {{distanceWeights={INPUT_STONE=1,TOWN=-1},initWeight=1,buildOrder=4},{STONE=1}},
+	["industry/saw_mill.con"] = {{distanceWeights={INPUT_PLANKS=1,INPUT_LOGS=-2},initWeight=2,tags={"INPUT_LOGS"},buildOrder=7},{PLANKS=1}},
+	["industry/steel_mill.con"] = {{distanceWeights={INPUT_COAL=-1,INPUT_IRON_ORE=-1,INPUT_STEEL=1},initWeight=2,tags={"INPUT_IRON_ORE","INPUT_COAL"},buildOrder=10},{STEEL=1}},
+	["industry/tools_factory.con"] = {{distanceWeights={INPUT_PLANKS=-2,INPUT_TOOLS=1},initWeight=1,tags={"INPUT_PLANKS"},buildOrder=5},{TOOLS=1}},
+}

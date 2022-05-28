@@ -132,6 +132,22 @@ function table_util.groupBy(t, func)
 	return result
 end
 
+--- Groups values from list into a new dictionary using key selector function.
+---@param t any[]
+---@param func function Key selector (value, key).
+---@return table<any, any[]>
+function table_util.igroupBy(t, func)
+	local result = {}
+	for i, v in ipairs(t) do
+		local key = func(v, i)
+		if not result[key] then
+			result[key] = {}
+		end
+		result[key][#result[key]+1] = v
+	end
+	return result
+end
+
 --- Filter table values.
 ---@param t table
 ---@param func function Predicate (value, key).
