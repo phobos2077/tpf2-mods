@@ -205,90 +205,123 @@ function Timer:elapsedMs()
 	return self.e * 1000
 end
 
+local function newEdgeCosts()
+	---@class EdgeCostData
+	local d = {
+		edge = 0,
+		bridge = 0,
+		tunnel = 0,
+		objects = 0, -- object costs are included in edge costs
+		len = {
+			edge = 0,
+			bridge = 0,  -- edge length include bridge and tunnel lengths
+			tunnel = 0,
+		},
+		numObjs = 0
+	}
+	return d
+end
+
+---@type table<number, EdgeCostData>
+local edgeCostCache = {}
+
+local function calculateEdgeCostData(edgeId, edge, timers)
+	local data = newEdgeCosts()
+
+	timers.gcStreet:start()
+	local street = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_STREET)
+	timers.gcStreet:stop()
+	timers.gcTrack:start()
+	local track = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_TRACK)
+	timers.gcTrack:stop()
+	timers.gcNetwork:start()
+	local network = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
+	timers.gcNetwork:stop()
+	timers.uniqPath:start()
+	local uniqTNPath = findUniqueTNPath(network.edges, edge)
+	timers.uniqPath:stop()
+	local lengthByTN = table_util.sum(uniqTNPath, function(e) return e.geometry.length end)
+	local edgeCost = 0
+	if street ~= nil then
+		data.category = Category.STREET
+		timers.costStreet:start()
+		edgeCost = getStreetEdgeCost(street, lengthByTN)
+		timers.costStreet:stop()
+	elseif track ~= nil then
+		data.category = Category.RAIL
+		timers.costTrack:start()
+		edgeCost = getTrackEdgeCost(track, lengthByTN)
+		timers.costTrack:stop()
+	end
+	timers.costModels:start()
+	local modelsCost, modelsNum = getModelsOnEdgeCost(edge)
+	timers.costModels:stop()
+	data.edge = edgeCost + modelsCost
+	data.len.edge = lengthByTN
+
+	data.objects = modelsCost
+	data.numObjs = modelsCost
+	if edge.type == 1 then
+		timers.costBridge:start()
+		local bridgeCost = table_util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
+		timers.costBridge:stop()
+		data.bridge = bridgeCost
+		data.len.bridge = lengthByTN
+	elseif edge.type == 2 then
+		timers.costTunnel:start()
+		local tunnelCost = getTunnelEdgeCost(edge, lengthByTN)
+		timers.costTunnel:stop()
+		data.tunnel = tunnelCost
+		data.len.tunnel = lengthByTN
+	end
+	return data
+end
+
+local function compareRevisions(rv1, rv2)
+	return rv1[1] == rv2[1] and rv1[2] == rv2[2] and rv1[3] == rv2[3]
+end
+
 ---@return table<string, EdgeCostData>
 function entity_costs.getTotalEdgeCostsByCategory()
-    local playerId = game.interface.getPlayer()
-
-	local function newEdgeCosts()
-		---@class EdgeCostData
-		local d = {
-			edge = 0,
-			bridge = 0,
-			tunnel = 0,
-			objects = 0, -- object costs are included in edge costs
-			len = {
-				edge = 0,
-				bridge = 0,  -- edge length include bridge and tunnel lengths
-				tunnel = 0,
-			},
-			numObjs = 0
-		}
-		return d
-	end
+	local playerId = game.interface.getPlayer()
 	
-    local result = {
+	local result = {
 		[Category.STREET] = newEdgeCosts(),
 		[Category.RAIL] = newEdgeCosts()
 	}
 	local timers = {"gcStreet", "gcTrack", "gcNetwork", "uniqPath", "costStreet", "costTrack", "costModels", "costBridge", "costTunnel"}
 	timers = table_util.mapDict(timers, function(name) return name, Timer.new() end)
 	api.engine.forEachEntityWithComponent(function(edgeId, edge)
-        if entity_util.isPlayerOwned(edgeId, playerId) then
-			timers.gcStreet:start()
-			local street = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_STREET)
-			timers.gcStreet:stop()
-			timers.gcTrack:start()
-			local track = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_TRACK)
-			timers.gcTrack:stop()
-			timers.gcNetwork:start()
-			local network = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
-			timers.gcNetwork:stop()
-			timers.uniqPath:start()
-			local uniqTNPath = findUniqueTNPath(network.edges, edge)
-			timers.uniqPath:stop()
-			local lengthByTN = table_util.sum(uniqTNPath, function(e) return e.geometry.length end)
-			local category = nil
-			local edgeCost = 0
-			if street ~= nil then
-				category = Category.STREET
-				timers.costStreet:start()
-				edgeCost = getStreetEdgeCost(street, lengthByTN)
-				timers.costStreet:stop()
-			elseif track ~= nil then
-				category = Category.RAIL
-				timers.costTrack:start()
-				edgeCost = getTrackEdgeCost(track, lengthByTN)
-				timers.costTrack:stop()
+		local edgeData = edgeCostCache[edgeId]
+		local curRevision = api.engine.getRevision(edgeId)
+		if edgeData then
+			if not compareRevisions(curRevision, edgeData.revision) then
+				edgeData = nil
 			end
-			if category ~= nil then
-				local subResult = result[category]
-				timers.costModels:start()
-				local modelsCost, modelsNum = getModelsOnEdgeCost(edge)
-				timers.costModels:stop()
-				table_util.incInTable(subResult, "edge", edgeCost + modelsCost)
-				table_util.incInTable(subResult.len, "edge", lengthByTN)
+		end
+		if edgeData == nil then
+			edgeData = entity_util.isPlayerOwned(edgeId, playerId)
+				and calculateEdgeCostData(edgeId, edge, timers)
+				or {}
+			edgeCostCache[edgeId] = edgeData
+			edgeData.revision = curRevision
+		end
+		if edgeData.category then
+			local subResult = result[edgeData.category]
+			table_util.incInTable(subResult, "edge", edgeData.edge)
+			table_util.incInTable(subResult, "objects", edgeData.objects)
+			table_util.incInTable(subResult, "bridge", edgeData.bridge)
+			table_util.incInTable(subResult, "tunnel", edgeData.tunnel)
 
-				table_util.incInTable(subResult, "objects", modelsCost)
-				table_util.incInTable(subResult, "numObjs", modelsNum)
-				if edge.type == 1 then
-					timers.costBridge:start()
-					local bridgeCost = table_util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
-					timers.costBridge:stop()
-					table_util.incInTable(subResult, "bridge", bridgeCost)
-					table_util.incInTable(subResult.len, "bridge", lengthByTN)
-				elseif edge.type == 2 then
-					timers.costTunnel:start()
-					local tunnelCost = getTunnelEdgeCost(edge, lengthByTN)
-					timers.costTunnel:stop()
-					table_util.incInTable(subResult, "tunnel", tunnelCost)
-					table_util.incInTable(subResult.len, "tunnel", lengthByTN)
-				end
-			end
-        end
-    end, api.type.ComponentType.BASE_EDGE)
+			table_util.incInTable(subResult, "numObjs", edgeData.numObjs)
+			table_util.incInTable(subResult.len, "edge", edgeData.len.edge)
+			table_util.incInTable(subResult.len, "bridge", edgeData.len.bridge)
+			table_util.incInTable(subResult.len, "tunnel", edgeData.len.tunnel)
+		end
+	end, api.type.ComponentType.BASE_EDGE)
 
 	result._times = table_util.map(timers, Timer.elapsedMs)
-    return result
+	return result
 end
 
 ---@return ConstructionMaintenanceByCategory
