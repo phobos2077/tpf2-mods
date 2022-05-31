@@ -23,6 +23,7 @@ local constructionTypeStrToCategory = {
 	RAIL_DEPOT = Category.RAIL,
 	RAIL_STATION = Category.RAIL,
 	RAIL_STATION_CARGO = Category.RAIL,
+	TRACK_CONSTRUCTION = Category.RAIL,
 
 	STREET_CONSTRUCTION = Category.STREET,
 	STREET_DEPOT = Category.STREET,
@@ -98,7 +99,6 @@ function entity_info.getCategoryByTransportModes(transportModes, context)
     return cat
 end
 
-
 function entity_info.getCategoryByCarriers(carriers)
 	for carrierStr, flag in pairs(carriers) do
 		if flag then
@@ -109,5 +109,8 @@ function entity_info.getCategoryByCarriers(carriers)
 		end
 	end
 end
+
+entity_info.getCategoryByConstructionType = getCategoryByConstructionType
+entity_info.getConstructionTypeByFileName = getConstructionTypeByFileName
 
 return entity_info

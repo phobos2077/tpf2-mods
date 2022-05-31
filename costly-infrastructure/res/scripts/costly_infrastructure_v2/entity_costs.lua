@@ -186,10 +186,28 @@ local function findUniqueTNPath(tnEdges, edge)
 	return tnPath
 end
 
+local Timer = {}
+function Timer.new()
+	local o = {t = 0, e = 0}
+	setmetatable(o, {__index = Timer})
+	return o
+end
+
+function Timer:start()
+	self.t = os.clock()
+end
+
+function Timer:stop()
+	self.e = self.e + os.clock() - self.t
+end
+
+function Timer:elapsedMs()
+	return self.e * 1000
+end
+
 ---@return table<string, EdgeCostData>
 function entity_costs.getTotalEdgeCostsByCategory()
     local playerId = game.interface.getPlayer()
-    local allEdges = entity_util.findAllEntitiesOfType("BASE_EDGE")
 
 	local function newEdgeCosts()
 		---@class EdgeCostData
@@ -212,50 +230,70 @@ function entity_costs.getTotalEdgeCostsByCategory()
 		[Category.STREET] = newEdgeCosts(),
 		[Category.RAIL] = newEdgeCosts()
 	}
-    for _, edgeId in pairs(allEdges) do
+	local timers = {"gcStreet", "gcTrack", "gcNetwork", "uniqPath", "costStreet", "costTrack", "costModels", "costBridge", "costTunnel"}
+	timers = table_util.mapDict(timers, function(name) return name, Timer.new() end)
+	api.engine.forEachEntityWithComponent(function(edgeId, edge)
         if entity_util.isPlayerOwned(edgeId, playerId) then
+			timers.gcStreet:start()
 			local street = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_STREET)
+			timers.gcStreet:stop()
+			timers.gcTrack:start()
 			local track = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE_TRACK)
+			timers.gcTrack:stop()
+			timers.gcNetwork:start()
 			local network = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
-			local edge = api.engine.getComponent(edgeId, api.type.ComponentType.BASE_EDGE)
+			timers.gcNetwork:stop()
+			timers.uniqPath:start()
 			local uniqTNPath = findUniqueTNPath(network.edges, edge)
+			timers.uniqPath:stop()
 			local lengthByTN = table_util.sum(uniqTNPath, function(e) return e.geometry.length end)
 			local category = nil
 			local edgeCost = 0
 			if street ~= nil then
 				category = Category.STREET
+				timers.costStreet:start()
 				edgeCost = getStreetEdgeCost(street, lengthByTN)
+				timers.costStreet:stop()
 			elseif track ~= nil then
 				category = Category.RAIL
+				timers.costTrack:start()
 				edgeCost = getTrackEdgeCost(track, lengthByTN)
+				timers.costTrack:stop()
 			end
 			if category ~= nil then
 				local subResult = result[category]
+				timers.costModels:start()
 				local modelsCost, modelsNum = getModelsOnEdgeCost(edge)
+				timers.costModels:stop()
 				table_util.incInTable(subResult, "edge", edgeCost + modelsCost)
 				table_util.incInTable(subResult.len, "edge", lengthByTN)
 
 				table_util.incInTable(subResult, "objects", modelsCost)
 				table_util.incInTable(subResult, "numObjs", modelsNum)
 				if edge.type == 1 then
+					timers.costBridge:start()
 					local bridgeCost = table_util.sum(uniqTNPath, function(e) return getBridgeEdgeCost(edge, e.geometry) end)
+					timers.costBridge:stop()
 					table_util.incInTable(subResult, "bridge", bridgeCost)
 					table_util.incInTable(subResult.len, "bridge", lengthByTN)
 				elseif edge.type == 2 then
+					timers.costTunnel:start()
 					local tunnelCost = getTunnelEdgeCost(edge, lengthByTN)
+					timers.costTunnel:stop()
 					table_util.incInTable(subResult, "tunnel", tunnelCost)
 					table_util.incInTable(subResult.len, "tunnel", lengthByTN)
 				end
 			end
         end
-    end
+    end, api.type.ComponentType.BASE_EDGE)
+
+	result._times = table_util.map(timers, Timer.elapsedMs)
     return result
 end
 
 ---@return ConstructionMaintenanceByCategory
 function entity_costs.getTotalConstructionMaintenanceByCategory()
 	local playerId = game.interface.getPlayer()
-	local allConstructions = entity_util.findAllEntitiesOfType("CONSTRUCTION")
 	---@class ConstructionMaintenanceByCategory
 	local result = {
 		[Category.STREET] = 0,
@@ -264,11 +302,10 @@ function entity_costs.getTotalConstructionMaintenanceByCategory()
 		[Category.AIR] = 0,
 		num = {}
 	}
-    for _, id in pairs(allConstructions) do
-		if entity_util.isPlayerOwned(id, playerId) then
-			local construction = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)
+	api.engine.system.streetConnectorSystem.forEach(function(id, construction)
+		if #construction.townBuildings == 0 and entity_util.isPlayerOwned(id, playerId) then
 			local maintenanceCost = api.engine.getComponent(id, api.type.ComponentType.MAINTENANCE_COST)
-			if construction ~= nil and maintenanceCost ~= nil then
+			if maintenanceCost ~= nil then
 				local category = entity_info.getCategoryByConstructionFileName(construction.fileName)
 				if category ~= nil then
 					table_util.incInTable(result, category, maintenanceCost.maintenanceCost)
@@ -276,7 +313,15 @@ function entity_costs.getTotalConstructionMaintenanceByCategory()
 				end
 			end
 		end
-	end
+	end)
+    --[[
+	local allConstructions = entity_util.findAllEntitiesOfType("CONSTRUCTION")
+	for _, id in pairs(allConstructions) do
+		if entity_util.isPlayerOwned(id, playerId) then
+			local construction = api.engine.getComponent(id, api.type.ComponentType.CONSTRUCTION)
+			
+		end
+	end]]
 	return result
 end
 

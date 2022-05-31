@@ -1,5 +1,7 @@
 local table_util = require "costly_infrastructure_v2/lib/table_util"
 local log_util = require "costly_infrastructure_v2/lib/log_util"
+local game_enum = require "costly_infrastructure_v2/lib/game_enum"
+
 local entity_info = require "costly_infrastructure_v2/entity_info"
 local config = require "costly_infrastructure_v2/config"
 local debugger = require "debugger"
@@ -116,19 +118,26 @@ end
 
 local function constructionModifier(fileName, data)
 	-- debugPrint({"loadConstruction", fileName, data})
-	local category = entity_info.getCategoryByConstructionTypeStr(data.type)
-	if category ~= nil and data.updateFn ~= nil then
-		local updateFn = data.updateFn
-		data.updateFn = function(params)
-			local result = updateFn(params)
-			if result ~= nil then
-				constructionUpdate(params, result, category)
-			end
-			-- debugPrint({"constr updateFn", fileName, params})
-			return result
-		end
+
+	-- Skip street/track constructions, will scale costs via guiHandleEvent
+	local conType = game_enum.ConstructionType[data.type]
+	if conType == game_enum.ConstructionType.STREET_CONSTRUCTION or conType == game_enum.ConstructionType.TRACK_CONSTRUCTION then
+		return data
+	end
+	local category = entity_info.getCategoryByConstructionType(conType)
+	if category == nil or data.updateFn == nil then
+		return data
 	end
 
+	local updateFn = data.updateFn
+	data.updateFn = function(params)
+		local result = updateFn(params)
+		if result ~= nil then
+			constructionUpdate(params, result, category)
+		end
+		-- debugPrint({"constr updateFn", fileName, params})
+		return result
+	end
 	return data
 end
 

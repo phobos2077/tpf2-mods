@@ -71,7 +71,6 @@ But it is affected by Base Cost Multipliers and is scaled independently from bui
 [h3]Known issues/limitations[/h3]
 [list]
 [*]Red floating numbers will keep showing the original unmodified maintenance costs. Rest assured, additional fees will be deducted from your account behind the scenes. You can monitor this in Finances window.
-[*]Refund amounts for individual station modules will still be based on original (lower) module price, so you might get much less money back than you expect. This is also modding API limitation.
 [*]If you add this mod to existing game where you set Maintenance Cost to something other than 100% and built a bunch of infrastructure, the calculations will be slightly off (in higher or lower direction) because of how the mod works.
 [/list]
 
@@ -121,8 +120,8 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_air"] = "Maintenance: Air",
 			["param maint_mult_air tip"] = maintMultTip.en("Air"),
 
-			["param scale_edge_costs"] = "Scale Track/Road build costs",
-			["param scale_edge_costs tip"] = "Build costs of tracks, roads, waypoints, signals and road stops will dynamically scale just like stations.",
+			["param edge_cost_scale_factor"] = "Track/Road build cost scaling",
+			["param edge_cost_scale_factor tip"] = "Determines how much build costs of tracks and roads will scale compared to stations.",
 		},
 
 		de = {
@@ -186,9 +185,7 @@ Aber es wird von Grundkostenmultiplikatoren beeinflusst und unabhängig von den 
 
 [h3]Bekannte Probleme/Einschränkungen[/h3]
 [list]
-[*]Die Baukosten von Gleisen und Straßen ändern sich nicht dynamisch (nur vom Basismultiplikator betroffen). Aber Instandhaltungskosten werden!
 [*]Rote schwebende Zahlen zeigen weiterhin die ursprünglichen unveränderten Instandhaltungskosten an. Seien Sie versichert, zusätzliche Gebühren werden hinter den Kulissen von Ihrem Konto abgezogen. Sie können dies im Finanzfenster überwachen.
-[*]Erstattungsbeträge für einzelne Stationsmodule basieren weiterhin auf dem ursprünglichen (niedrigeren) Modulpreis, sodass Sie möglicherweise viel weniger Geld zurückerhalten, als Sie erwarten. Dies ist auch eine Modding-API-Einschränkung.
 [*]Wenn du diesen Mod zu einem bestehenden Spiel hinzufügst, in dem du die Instandhaltungskosten auf etwas anderes als 100 % setzt und eine Menge Infrastruktur aufbaust, werden die Berechnungen aufgrund der Funktionsweise des Mods leicht abweichen (in höherer oder niedrigerer Richtung).
 [/list]
 
@@ -235,8 +232,8 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_air"] = "Instandhaltung: Luft",
 			["param maint_mult_air tip"] = "",
 
-			["param scale_edge_costs"] = "Baukosten für Gleise und Straßen skalieren",
-			["param scale_edge_costs tip"] = "Die Kosten für den Bau von Strecken, Straßen, Wegpunkten, Signalen und Straßenstationen werden dynamisch zusammen mit den Gebäuden skaliert.",
+			["param edge_cost_scale_factor"] = "Skalierung der Strecken-/Straßenbaukosten",
+			["param edge_cost_scale_factor tip"] = "Legt fest, wie hoch die Baukosten von Gleisen und Straßen im Vergleich zu Stationen skaliert werden.",
 		},
 
 		ru ={
@@ -333,8 +330,8 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=2802501762
 			["param maint_mult_air"] = "Содержание: Авиация",
 			["param maint_mult_air tip"] = "",
 
-			["param scale_edge_costs"] = "Масштабировать стоим. строит. путей и дорог",
-			["param scale_edge_costs tip"] = "Стоимость путей, дорог, путевых точек, сигналов и остановок будет масштабироваться также как и другие строения.",
+			["param edge_cost_scale_factor"] = "Степень увеличения стоим. строит. путей и дорог",
+			["param edge_cost_scale_factor tip"] = "Определяет как сильно стоимость путей и дорог будет увеличиваться, в сравнении со стоимостью станций.",
 		}
 	}
 end

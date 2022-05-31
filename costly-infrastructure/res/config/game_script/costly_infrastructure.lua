@@ -19,10 +19,10 @@ local math_ex = require "costly_infrastructure_v2/lib/math_ex"
 local entity_costs = require "costly_infrastructure_v2/entity_costs"
 local line_stats = require "costly_infrastructure_v2/line_stats"
 local station_stats = require "costly_infrastructure_v2/station_stats"
-local vehicle_stats = require "costly_infrastructure_v2/vehicle_stats"
 local enum = require "costly_infrastructure_v2/enum"
 local debug = require "costly_infrastructure_v2/debug"
 local config = require "costly_infrastructure_v2/config"
+local builder_events = require "costly_infrastructure_v2/builder_events"
 
 local debugger = require "debugger"
 
@@ -46,16 +46,6 @@ local edgeCategoryToConstruction = {
 --- VARIABLES
 
 local persistentData = {}
-
-local vehicleMultCalculator
-
----@return VehicleMultCalculator
-local function getVehicleMultCalculator()
-	if vehicleMultCalculator == nil then
-		vehicleMultCalculator = vehicle_stats.VehicleMultCalculator.new(config.get().vehicleMultParams, vehicle_stats.loadVehicleStats())
-	end
-	return vehicleMultCalculator
-end
 
 
 --- FUNCTIONS
@@ -130,10 +120,31 @@ local function calculateUsageMult(linesRate, stationsCapacity, params)
 	return math.max(mult, 1)
 end
 
+local function measure(f, stats, k)
+	local timer = os.clock()
+	local result = f()
+	stats[k] = (os.clock() - timer) * 1000
+	return result
+end
+
+local function timerStart()
+	return os.clock()
+end
+
+local function timerStop(timer)
+	return (os.clock() - timer) * 1000
+end
+
 ---@param configData ConfigObject
 local function chargeExtraMaintenance(configData)
+	local times = {}
+	local totalTimer = timerStart()
+	local timer = timerStart()
 	local stationCapacityByCat = station_stats.getTotalCapacityOfAllStationsByCategory()
+	times.stationCap = timerStop(timer)
+	timer = timerStart()
 	local linesRateByCat = line_stats.getTotalLineRatesByCategory()
+	times.lineRates = timerStop(timer)
 	local usageMultByCat = table_util.mapDict(Category, function(cat)
 		return cat, calculateUsageMult(linesRateByCat[cat], stationCapacityByCat[cat], configData.maintenanceCostParams[cat])
 	end)
@@ -143,28 +154,24 @@ local function chargeExtraMaintenance(configData)
 	---@field constructionMaintenance ConstructionMaintenanceByCategory
 	local statData = {chargedByCategory = table_util.map(usageMultByCat, function() return 0 end)}
 	--debugPrint({"Trying to charge extra maintenance costs", inflationMults})
+	timer = timerStart()
 	chargeExtraEdgeMaintenance(configData.costMultipliers, usageMultByCat, statData)
+	times.edgeMaint = timerStop(timer)
+	timer = timerStart()
 	chargeExtraConstructionMaintenance(configData.costMultipliers, usageMultByCat, statData)
+	times.conMaint = timerStop(timer)
 
-	-- debugPrint({msg = "Charged Extra Maintenance", stats = statData, usageMult = usageMultByCat, rates = linesRateByCat, capacity = stationCapacityByCat,
-	-- 	costMult = configData.costMultipliers, maint = configData.maintenanceCostParams})
+	local elapsed = timerStop(totalTimer)
+	debugPrint({msg = "Charged Extra Maintenance", stats = statData, usageMult = usageMultByCat, rates = linesRateByCat, capacity = stationCapacityByCat,
+		costMult = configData.costMultipliers, maint = configData.maintenanceCostParams, times = times, elapsed = elapsed})
 
 	local charged = statData.chargedByCategory
 	local total = table_util.sum(charged)
 	local mults = table_util.map(usageMultByCat, function(mult, cat) return mult * configData.costMultipliers[cat] end)
-	 print(string.format("Charged extra maintenance costs. Rail: $%d, Road: $%d, Water: $%d, Air: $%d. TOTAL = $%d", charged.rail, charged.street, charged.water, charged.air, total)..
+	print(string.format("Charged extra maintenance costs. Rail: $%d, Road: $%d, Water: $%d, Air: $%d. TOTAL = $%d (in %.0f ms.)", charged.rail, charged.street, charged.water, charged.air, total, elapsed)..
 		string.format("\nFinal multipliers: Rail: %.2f, Road: %.2f, Water: %.2f, Air: %.2f", mults.rail, mults.street, mults.water, mults.air))
 end
 
-local function bookExtraBuildCosts(amount, carrier, construction)
-	print(string.format("Charge extra for construction: %d, carrier: %d, constr: %d", amount, carrier, construction))
-	journal_util.bookEntry(-amount, journal_util.Enum.Type.CONSTRUCTION, carrier, construction, 0, 0)
-end
-
-
-local guiState = {}
-
-local noSpam = false
 
 function data()
 	return {
@@ -189,54 +196,18 @@ function data()
 			end
 		end,
 		guiHandleEvent = function(id, name, param)
-			-- if id ~= "constructionBuilder" then
+			-- if name == "builder.apply" then
 			-- 	debugPrint({"guiHandleEvent", id, name, param})
 			-- end
 			
-			-- Track, road, signal, waypoint, road station: build costs scaling.
-			if (id == "trackBuilder" or id == "streetBuilder" or id == "streetTerminalBuilder") and
-				(name == "builder.proposalCreate" or name == "builder.apply") and
-				config.get().scaleEdgeCosts then
-
-				-- if name == "builder.apply" then
-				-- 	debugPrint({"builder apply", param})
-				-- end
-				local addedSegments = param.proposal.proposal.addedSegments
-				if #addedSegments > 0 then
-					local category = addedSegments[1].type == 1 and Category.RAIL or Category.STREET
-					local mult = getVehicleMultCalculator():getMultiplier(category, game.interface.getGameTime().date.year)
-					if name == "builder.apply" then
-						-- debugPrint({"apply", param.data.costs, category, game.interface.getGameTime().date.year, mult})
-						if mult > 1 then
-							local carrier = category == Category.RAIL
-								and journal_util.Enum.Carrier.RAIL
-								or journal_util.Enum.Carrier.ROAD
-							local construction = category == Category.RAIL
-								and journal_util.Enum.Construction.TRACK
-								or journal_util.Enum.Construction.STREET
-							bookExtraBuildCosts(math.floor(param.data.costs * (mult - 1)), carrier, construction)
-						end
-					end
-					param.data.costs = math.floor(param.data.costs * mult)
-				end
-			end
+			builder_events.guiHandleEvent(id, name, param)
 		end,
 		handleEvent = function(src, id, name, param)
 			-- if src ~= "guidesystem.lua" then
 			-- 	debugPrint({"handleEvent", src, id, name, param})
 			-- end
 
-			-- Support for Auto-Parallel Tracks and AutoSig mods.
-			if (id == "__ptracks__" or id == "__autosig2__") and name == "costs" and param.costs and config.get().scaleEdgeCosts then
-				local mult = getVehicleMultCalculator():getMultiplier(Category.RAIL, game.interface.getGameTime().date.year)
-				if mult > 1 then
-					local constr = (id == "__ptracks__")
-						and journal_util.Enum.Construction.TRACK
-						or journal_util.Enum.Construction.SIGNAL
-						
-					bookExtraBuildCosts(math.floor(param.costs * (mult - 1)), journal_util.Enum.Carrier.RAIL, constr)
-				end
-			end
+			builder_events.handleEvent(id, name, param)
 		end
 	}
 end

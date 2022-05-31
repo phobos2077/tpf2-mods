@@ -93,19 +93,17 @@ function station_stats.getTotalCapacityOfAllStationsByCategory()
     local player = game.interface.getPlayer()
     local result = table_util.mapDict(Category, function(cat) return cat, 0 end)
 
-	local allStations = entity_util.findAllEntitiesOfType("STATION")
-
 	local stationsByTnEntity = {}
-	for _, stationId in pairs(allStations) do
+	api.engine.forEachEntityWithComponent(function(stationId, station)
 		if entity_util.isPlayerOwned(stationId, player) then
-			local station = api.engine.getComponent(stationId, api.type.ComponentType.STATION)
 			local tnEntity = getStationTnEntity(station)
 			if stationsByTnEntity[tnEntity] == nil then
 				stationsByTnEntity[tnEntity] = {{}, stationId}
 			end
 			table.insert(stationsByTnEntity[tnEntity][1], station)
 		end
-	end
+	end, api.type.ComponentType.STATION)
+
 	for tnEntity, data in pairs(stationsByTnEntity) do
 		local stations, firstStationId = table.unpack(data)
 		local stationInfo = game.interface.getEntity(firstStationId)

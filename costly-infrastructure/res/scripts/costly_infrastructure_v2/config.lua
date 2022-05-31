@@ -31,7 +31,8 @@ local function genSlider(labelFunc, defaultVal, ...) return config_util.genParam
 local fmt = config_util.fmt
 
 local paramTypes = {
-	cost = function(default) return genSlider(fmt.percent, default or 1, {0.25, 2.0, 0.25}, {2.5, 4.0, 0.5}, {5, 10, 1}) end,
+	cost = function(default) return genSlider(fmt.percent, default or 1, {0.25, 2.0, 0.25}, {2.5, 5.0, 0.5}, {6, 10, 1}) end,
+	scaleFactor = function(default) return genSlider(fmt.percent, default or 0, 0, 1, 0.1) end,
 	--maint = function(default) return genSlider(fmt.percent, default or 1, {0.25, 1.5, 0.25}, {2.0, 4.0, 0.5}) end,
 	vehMult = function(default) return genSlider(fmt.timesX, default or 10, {1, 4, 0.5}, {5, 10, 1}, {12, 30, 2}) end,
 	upgrade = function(default) return genSlider(fmt.timesX, default or 3, 0.5, 5, 0.5) end,
@@ -49,11 +50,11 @@ local allParams = {
 	{"mult_bridges_tunnels", paramTypes.terrain(3)},
 	{"mult_terrain", paramTypes.terrain(1)},
 	{"mult_upgrade_edge", paramTypes.upgrade()},
-	{"veh_mult_street", paramTypes.vehMult(6)},
-	{"veh_mult_rail", paramTypes.vehMult(6)},
+	{"veh_mult_street", paramTypes.vehMult(10)},
+	{"veh_mult_rail", paramTypes.vehMult(10)},
 	{"veh_mult_water", paramTypes.vehMult(6)},
 	{"veh_mult_air", paramTypes.vehMult(3)},
-	{"scale_edge_costs", paramTypes.flag(true)},
+	{"edge_cost_scale_factor", paramTypes.scaleFactor(0.5)},
 	{"maint_mult_street", paramTypes.cost(1)},
 	{"maint_mult_rail", paramTypes.cost(3)},
 	{"maint_mult_water", paramTypes.cost(3)},
@@ -115,8 +116,8 @@ local function getDataFromParams(params)
 			mult = params.veh_mult_air,
 		},
 	}
-	---@type boolean
-	o.scaleEdgeCosts = params.scale_edge_costs
+	---@type number
+	o.edgeCostScaleFactor = params.edge_cost_scale_factor
 	--- Additional multiplier for bridge and tunnel maintenance. TODO?
 	-- o.bridgeAndTunnelMaintenanceFactor = 1
 	---@type table<string,MaintenanceCostParam>
