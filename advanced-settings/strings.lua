@@ -9,6 +9,21 @@ Allows to change some game settings beyond their allowed values:
 - Industry spawning and closure parameters
 
 These settings will override any normal settings you set.
+
+Default game settings, for reference: 
+[list]
+[*]Towns: Max number per km² : 0.2
+[*]Towns: Allow in rough terrain : false
+[*]Industries: Max number per km² : 0.8
+[*]Industries: Absolute minimum : 5
+[*]Industries: Max number per km² (target) : 0.8  (in-game values: 0.4, 0.6, 0.8, 1.0)
+[*]Make initial streets : true
+[*]Industries: Enable Spawn : false (true if "closure frequency" is not "none")
+[*]Industries: Spawn Target Timespan : 50y
+[*]Industries: Spawn probability exponent : 3.0
+[*]Industries: Closure Countdown Timespan : 2y
+[*]Industries: Closure Probability exponent : 1 (in game values: 0, 1, 2, 3, 4)
+[/list]
 ]],
 
 			["param locs_makeInitialStreets"] = "Make initial streets",

@@ -62,7 +62,6 @@ https://steamcommunity.com/workshop/filedetails/discussion/2138212041/3387282447
 [h3]Known issues/limitations[/h3]
 [list]
 [*]Red floating numbers will keep showing the original unmodified maintenance costs. Rest assured, additional fees will be deducted from your account behind the scenes. You can monitor this in Finances window.
-[*]Refund amounts for individual station modules will still be based on original (lower) module price, so you might get much less money back than you expect. This is also modding API limitation.
 [*]If you add this mod to existing game where you set Maintenance Cost to something other than 100% and built a bunch of infrastructure, the calculations will be slightly off (in higher or lower direction) because of how the mod works.
 [/list]
 

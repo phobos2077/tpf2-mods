@@ -162,8 +162,8 @@ local function chargeExtraMaintenance(configData)
 	times.conMaint = timerStop(timer)
 
 	local elapsed = timerStop(totalTimer)
-	debugPrint({msg = "Charged Extra Maintenance", stats = statData, usageMult = usageMultByCat, rates = linesRateByCat, capacity = stationCapacityByCat,
-		costMult = configData.costMultipliers, maint = configData.maintenanceCostParams, times = times, elapsed = elapsed})
+	--[[debugPrint({msg = "Charged Extra Maintenance", stats = statData, usageMult = usageMultByCat, rates = linesRateByCat, capacity = stationCapacityByCat,
+		costMult = configData.costMultipliers, maint = configData.maintenanceCostParams, times = times, elapsed = elapsed})]]
 
 	local charged = statData.chargedByCategory
 	local total = table_util.sum(charged)
